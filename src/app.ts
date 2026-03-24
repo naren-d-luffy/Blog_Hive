@@ -1,6 +1,7 @@
 import express, {Response,Request} from "express";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import errorHandler from "./middleware/error.middleware";
 
 const app = express()
 
@@ -13,5 +14,20 @@ app.use(express.urlencoded({extended:true}));
 app.get("/",(req:Request, res:Response)=>{
     res.json({message:"Api is running fine."})
 });
+
+app.get("/health", (req:Request, res:Response)=>{
+    res.json({message:"API Health is great."})
+})
+
+// app.use("/api/v1")
+
+app.use((req,res)=>{
+    res.status(404).json({
+        success:false,
+        message:"Route not found"
+    })
+})
+
+app.use(errorHandler);
 
 export default app;

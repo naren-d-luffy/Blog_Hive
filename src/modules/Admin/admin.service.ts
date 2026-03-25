@@ -74,12 +74,12 @@ export const adminService = {
     const admin = await adminRepository.findByEmail(email);
 
     if (!admin) throw new AppError("Invalid credentials", 401);
-    
-    if (admin.status === "inactive"){
+
+    if (admin.status === "inactive") {
       throw new AppError("Admin is Inactive, contact Super Admin", 403);
     }
 
-    if (admin.lockUntil && admin.lockUntil.getTime() > Date.now()){
+    if (admin.lockUntil && admin.lockUntil.getTime() > Date.now()) {
       throw new AppError("Account is locked, Try again later", 403);
     }
 
@@ -119,5 +119,19 @@ export const adminService = {
     admin.refreshToken = null;
     await adminRepository.save(admin);
     return;
+  },
+
+  async updateStatus(id: string, status: "active" | "inactive") {
+    const updated = await adminRepository.update(id, { status });
+    if (!updated) throw new AppError("Error updating the Admin status", 400);
+    const sanitizedData = this.sanitizeAdmin(updated);
+    return sanitizedData;
+  },
+
+  async softDelete(id: string) {
+    const deleted = await adminRepository.softDelete(id);
+    if (!deleted) throw new AppError("Error Deleting Admin", 400);
+    const sanitizedAdmin = this.sanitizeAdmin(deleted);
+    return sanitizedAdmin;
   },
 };

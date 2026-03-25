@@ -5,7 +5,8 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import AppError from "../../utils/AppError";
 import { IAdmin } from "./admin.interface";
-import { adminLoginSchema, createAdminSchema } from "./admin.validator";
+import { AdminLoginInput, CreateAdminInput } from "./admin.validator";
+import { AuthUser } from "../../types/auth.types";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -30,17 +31,10 @@ export const adminService = {
     };
   },
 
-  async createAdmin(admin: Partial<IAdmin>) {
-    const result = createAdminSchema.safeParse(admin);
-    if (!result.success) {
-      throw new AppError(result.error.message, 400);
-    }
-
-    const { password, ...adminData } = result.data;
-
-    const hashed = await bcrypt.hash(password, 10);
+  async createAdmin(admin: CreateAdminInput) {
+    const hashed = await bcrypt.hash(admin.password, 10);
     const newAdmin = await adminRepository.create({
-      ...adminData,
+      ...admin,
       password: hashed,
       role: "admin",
       status: "active",
@@ -49,13 +43,8 @@ export const adminService = {
     return this.sanitizeAdmin(newAdmin);
   },
 
-  async loginAdmin(credentials: unknown) {
-    const result = adminLoginSchema.safeParse(credentials);
-
-    if (!result.success) {
-      throw new AppError(result.error.message, 400);
-    }
-    const { email, password } = result.data;
+  async loginAdmin(credentials: AdminLoginInput) {
+    const { email, password } = credentials;
 
     const admin = await adminRepository.findByEmail(email);
 
@@ -80,7 +69,7 @@ export const adminService = {
     admin.failedLoginAttempt = 0;
     admin.lastLogin = new Date();
 
-    const payload = {id: admin.id, role:admin.role}
+    const payload:AuthUser = {id: admin.id, role:admin.role}
 
     const accessToken = jwt.sign(payload,ACCESS_SECRET,{expiresIn:"30m"});
     const refreshToken = jwt.sign(payload,REFRESH_SECRET,{expiresIn:"7d"});
@@ -97,7 +86,7 @@ export const adminService = {
     this.checkId(id);
 
     const admin = await adminRepository.findById(id);
-    if(!admin) throw new AppError("Admin not found or deleted", 400);
+    if(!admin) throw new AppError("Admin not found or deleted", 404);
     admin.refreshToken= null;
     await adminRepository.save(admin);
     return;

@@ -21,7 +21,47 @@ export const adminController = {
         data: admin,
       });
     } catch (error) {
-      return next(new AppError("Error Creating Admin",400,{error}));
+      return next(new AppError("Error Creating Admin", 400, { error }));
+    }
+  },
+
+  async getallAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      const result = await adminService.findAllAdmin(page, limit);
+
+      res.status(200).json({
+        success: true,
+        message: "Admins fetched successfully",
+        data: result,
+      });
+    } catch (error) {
+      return next(new AppError("Error fetching admin", 400, { error }));
+    }
+  },
+
+  async getAdminById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.user?.id;
+
+      if(!id){
+        return next(new AppError("Id is required",400))
+      }
+
+      const fetchedAdmin = await adminService.findAdminById(id);
+
+      if (!fetchedAdmin) {
+        return next(new AppError("Admin not Found or Deleted", 404));
+      }
+      res.status(200).json({
+        success: true,
+        message: "Admin fetched successfully",
+        data: fetchedAdmin,
+      });
+    } catch (error) {
+      return next(new AppError("Error Fetching Admin", 400, { error }));
     }
   },
 
@@ -49,7 +89,7 @@ export const adminController = {
         access: accessToken,
       });
     } catch (error) {
-      return next(new AppError("Error login Admin",400,{error}));
+      return next(new AppError("Error login Admin", 400, { error }));
     }
   },
 
@@ -57,8 +97,8 @@ export const adminController = {
     try {
       const id = req.user?.id;
 
-      if(!id){
-        return next(new AppError("Unauthorized", 401))
+      if (!id) {
+        return next(new AppError("Unauthorized", 401));
       }
 
       await adminService.logoutAdmin(id);
@@ -74,7 +114,7 @@ export const adminController = {
         message: "Logged out Successfully",
       });
     } catch (error) {
-      return next(new AppError("Error logging out Admin",400,{error}));
+      return next(new AppError("Error logging out Admin", 400, { error }));
     }
   },
 };

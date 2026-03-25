@@ -2,7 +2,7 @@ import express, {Response,Request} from "express";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import errorHandler from "./middleware/error.middleware";
-
+import router from "./router/index";
 const app = express()
 
 app.use(helmet());
@@ -19,7 +19,7 @@ app.get("/health", (req:Request, res:Response)=>{
     res.json({message:"API Health is great."})
 })
 
-// app.use("/api/v1")
+app.use("/api/v1",router)
 
 app.use((req,res)=>{
     res.status(404).json({

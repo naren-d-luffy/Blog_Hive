@@ -17,11 +17,11 @@ export const adminController = {
 
       res.status(201).json({
         success: true,
-        message: "Admin Fetched Successfully",
+        message: "Admin Created Successfully",
         data: admin,
       });
     } catch (error) {
-      return next(new AppError("Error Creating Admin", 400, { error }));
+      next(error)
     }
   },
 
@@ -38,7 +38,7 @@ export const adminController = {
         data: result,
       });
     } catch (error) {
-      return next(new AppError("Error fetching admin", 400, { error }));
+      next(error)
     }
   },
 
@@ -61,7 +61,7 @@ export const adminController = {
         data: fetchedAdmin,
       });
     } catch (error) {
-      return next(new AppError("Error Fetching Admin", 400, { error }));
+      next(error)
     }
   },
 
@@ -89,7 +89,7 @@ export const adminController = {
         access: accessToken,
       });
     } catch (error) {
-      return next(new AppError("Error login Admin", 400, { error }));
+      next(error)
     }
   },
 
@@ -114,7 +114,7 @@ export const adminController = {
         message: "Logged out Successfully",
       });
     } catch (error) {
-      return next(new AppError("Error logging out Admin", 400, { error }));
+      next(error)
     }
   },
 };

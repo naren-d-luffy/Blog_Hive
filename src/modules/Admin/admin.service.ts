@@ -11,7 +11,7 @@ import { AuthUser } from "../../types/auth.types";
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
 const FAILURE_COUNT = env.LOGIN_FAILURE_COUNT;
-const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME;
+const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME * 60 * 1000;
 
 export const adminService = {
   checkId(id: string) {
@@ -51,12 +51,18 @@ export const adminService = {
       adminRepository.findAll(skip, limit),
       adminRepository.count(),
     ]);
-    const sanitizedData = data.map(admin=>this.sanitizeAdmin(admin));
+    const sanitizedData = data.map((admin) => this.sanitizeAdmin(admin));
 
-    return { sanitizedData, total, page, limit, totalPage: Math.ceil(total / limit) };
+    return {
+      sanitizedData,
+      total,
+      page,
+      limit,
+      totalPage: Math.ceil(total / limit),
+    };
   },
 
-  async findAdminById(id:string){
+  async findAdminById(id: string) {
     const result = await adminRepository.findById(id);
     const sanitizedResult = this.sanitizeAdmin(result);
     return sanitizedResult;
@@ -68,10 +74,14 @@ export const adminService = {
     const admin = await adminRepository.findByEmail(email);
 
     if (!admin) throw new AppError("Invalid credentials", 401);
-    if (admin.status === "inactive")
+    
+    if (admin.status === "inactive"){
       throw new AppError("Admin is Inactive, contact Super Admin", 403);
-    if (admin.lockUntil && admin.lockUntil.getTime() > Date.now())
+    }
+
+    if (admin.lockUntil && admin.lockUntil.getTime() > Date.now()){
       throw new AppError("Account is locked, Try again later", 403);
+    }
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {

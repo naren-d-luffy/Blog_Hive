@@ -11,6 +11,6 @@ router.use(Authenticate,Authorize("admin"));
 
 router.get('/', adminController.getallAdmin);
 router.get('/id', adminController.getAdminById);
-router.post('logout', adminController.logout);
+router.post('/logout', adminController.logout);
 
 export default router;

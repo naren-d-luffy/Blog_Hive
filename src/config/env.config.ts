@@ -1,12 +1,16 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
-dotenv.config({quiet:true});
+dotenv.config({ quiet: true });
 
 const envSchema = z.object({
   PORT: z.string().default("3000").transform(Number),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   DB_URL: z.string().min(1, "DB URL is required"),
+  ACCESS_TOKEN: z.string().min(32, "Access Token should be 32 characters long"),
+  REFRESH_TOKEN: z.string().min(32, "Refresh Token should be 32 characters long"),
+  LOGIN_FAILURE_COUNT: z.coerce.number().min(1).default(3),
+  LOCK_UNTIL_TIME: z.coerce.number().min(1).default(15),
 });
 
 const parsed = envSchema.safeParse(process.env);

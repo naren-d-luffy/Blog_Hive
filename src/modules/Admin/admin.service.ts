@@ -20,7 +20,8 @@ export const adminService = {
     }
   },
 
-  sanitizeAdmin(admin: Partial<IAdmin>) {
+  sanitizeAdmin(admin: Partial<IAdmin> | null) {
+    if (!admin) return null;
     return {
       id: admin?._id,
       name: admin?.name,
@@ -41,6 +42,24 @@ export const adminService = {
     });
 
     return this.sanitizeAdmin(newAdmin);
+  },
+
+  async findAllAdmin(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      adminRepository.findAll(skip, limit),
+      adminRepository.count(),
+    ]);
+    const sanitizedData = data.map(admin=>this.sanitizeAdmin(admin));
+
+    return { sanitizedData, total, page, limit, totalPage: Math.ceil(total / limit) };
+  },
+
+  async findAdminById(id:string){
+    const result = await adminRepository.findById(id);
+    const sanitizedResult = this.sanitizeAdmin(result);
+    return sanitizedResult;
   },
 
   async loginAdmin(credentials: AdminLoginInput) {
@@ -69,26 +88,26 @@ export const adminService = {
     admin.failedLoginAttempt = 0;
     admin.lastLogin = new Date();
 
-    const payload:AuthUser = {id: admin.id, role:admin.role}
+    const payload: AuthUser = { id: admin.id, role: admin.role };
 
-    const accessToken = jwt.sign(payload,ACCESS_SECRET,{expiresIn:"30m"});
-    const refreshToken = jwt.sign(payload,REFRESH_SECRET,{expiresIn:"7d"});
-    const hashedRefresh = await bcrypt.hash(refreshToken,10);
+    const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
+    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
+    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
     admin.refreshToken = hashedRefresh;
     await adminRepository.save(admin);
 
     const safeData = this.sanitizeAdmin(admin);
-    
-    return {accessToken, refreshToken, safeData};
+
+    return { accessToken, refreshToken, safeData };
   },
 
-  async logoutAdmin(id:string){
+  async logoutAdmin(id: string) {
     this.checkId(id);
 
     const admin = await adminRepository.findById(id);
-    if(!admin) throw new AppError("Admin not found or deleted", 404);
-    admin.refreshToken= null;
+    if (!admin) throw new AppError("Admin not found or deleted", 404);
+    admin.refreshToken = null;
     await adminRepository.save(admin);
     return;
-  }
+  },
 };

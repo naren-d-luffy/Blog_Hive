@@ -134,4 +134,37 @@ export const adminService = {
     const sanitizedAdmin = this.sanitizeAdmin(deleted);
     return sanitizedAdmin;
   },
+
+  async postRefresh(token: string) {
+    let decode;
+    try {
+      decode = jwt.verify(token, env.REFRESH_TOKEN) as AuthUser;
+    } catch (error) {
+      throw new AppError("Invalid or expired refresh token", 403);
+    }
+
+    const adminDoc = (await adminRepository.findById(decode.id));
+    if (!adminDoc) throw new AppError("Admin not found", 404);
+
+    if (!adminDoc.refreshToken) {
+      throw new AppError("RefreshToken Expired", 403);
+    }
+
+    const match = await bcrypt.compare(token, adminDoc.refreshToken);
+    if (!match) throw new AppError("Refresh token mismatch", 403);
+
+    let payload: AuthUser = { id: adminDoc.id, role: adminDoc.role };
+
+    const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
+    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
+    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    
+    await adminRepository.update(adminDoc.id, {
+      refreshToken: hashedRefresh,
+    });
+
+    const safeData = this.sanitizeAdmin(adminDoc);
+
+    return { accessToken, refreshToken, safeData };
+  },
 };

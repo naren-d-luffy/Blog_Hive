@@ -6,7 +6,7 @@ import { AuthUser } from "../types/auth.types";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 
-const Authenticate = (req: Request,res: Response,next: NextFunction,): void => {
+export const Authenticate = (req: Request,res: Response,next: NextFunction,): void => {
   const auth = req.headers.authorization;
 
   if (!auth || !auth.startsWith("Bearer ")) {
@@ -27,7 +27,7 @@ const Authenticate = (req: Request,res: Response,next: NextFunction,): void => {
   }
 };
 
-const Authorize = (...role: string[]) => {
+export const Authorize = (...role: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AppError("Unauthorized", 401));
@@ -40,5 +40,3 @@ const Authorize = (...role: string[]) => {
     next();
   };
 };
-
-export default { Authenticate, Authorize };

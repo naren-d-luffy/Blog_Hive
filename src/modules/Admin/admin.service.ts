@@ -11,7 +11,7 @@ import { AuthUser } from "../../types/auth.types";
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
 const FAILURE_COUNT = env.LOGIN_FAILURE_COUNT;
-const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME;
+const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME * 60 * 1000;
 
 export const adminService = {
   checkId(id: string) {
@@ -51,12 +51,18 @@ export const adminService = {
       adminRepository.findAll(skip, limit),
       adminRepository.count(),
     ]);
-    const sanitizedData = data.map(admin=>this.sanitizeAdmin(admin));
+    const sanitizedData = data.map((admin) => this.sanitizeAdmin(admin));
 
-    return { sanitizedData, total, page, limit, totalPage: Math.ceil(total / limit) };
+    return {
+      sanitizedData,
+      total,
+      page,
+      limit,
+      totalPage: Math.ceil(total / limit),
+    };
   },
 
-  async findAdminById(id:string){
+  async findAdminById(id: string) {
     const result = await adminRepository.findById(id);
     const sanitizedResult = this.sanitizeAdmin(result);
     return sanitizedResult;
@@ -68,10 +74,14 @@ export const adminService = {
     const admin = await adminRepository.findByEmail(email);
 
     if (!admin) throw new AppError("Invalid credentials", 401);
-    if (admin.status === "inactive")
+
+    if (admin.status === "inactive") {
       throw new AppError("Admin is Inactive, contact Super Admin", 403);
-    if (admin.lockUntil && admin.lockUntil.getTime() > Date.now())
+    }
+
+    if (admin.lockUntil && admin.lockUntil.getTime() > Date.now()) {
       throw new AppError("Account is locked, Try again later", 403);
+    }
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
@@ -109,5 +119,52 @@ export const adminService = {
     admin.refreshToken = null;
     await adminRepository.save(admin);
     return;
+  },
+
+  async updateStatus(id: string, status: "active" | "inactive") {
+    const updated = await adminRepository.update(id, { status });
+    if (!updated) throw new AppError("Error updating the Admin status", 400);
+    const sanitizedData = this.sanitizeAdmin(updated);
+    return sanitizedData;
+  },
+
+  async softDelete(id: string) {
+    const deleted = await adminRepository.softDelete(id);
+    if (!deleted) throw new AppError("Error Deleting Admin", 400);
+    const sanitizedAdmin = this.sanitizeAdmin(deleted);
+    return sanitizedAdmin;
+  },
+
+  async postRefresh(token: string) {
+    let decode;
+    try {
+      decode = jwt.verify(token, env.REFRESH_TOKEN) as AuthUser;
+    } catch (error) {
+      throw new AppError("Invalid or expired refresh token", 403);
+    }
+
+    const adminDoc = (await adminRepository.findById(decode.id));
+    if (!adminDoc) throw new AppError("Admin not found", 404);
+
+    if (!adminDoc.refreshToken) {
+      throw new AppError("RefreshToken Expired", 403);
+    }
+
+    const match = await bcrypt.compare(token, adminDoc.refreshToken);
+    if (!match) throw new AppError("Refresh token mismatch", 403);
+
+    let payload: AuthUser = { id: adminDoc.id, role: adminDoc.role };
+
+    const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
+    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
+    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    
+    await adminRepository.update(adminDoc.id, {
+      refreshToken: hashedRefresh,
+    });
+
+    const safeData = this.sanitizeAdmin(adminDoc);
+
+    return { accessToken, refreshToken, safeData };
   },
 };

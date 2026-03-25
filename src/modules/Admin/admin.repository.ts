@@ -26,10 +26,18 @@ export const adminRepository = {
   },
 
   update(id: string, data: Partial<IAdmin>) {
-    return Admin.findByIdAndUpdate(id, data, {
+    return Admin.findByIdAndUpdate({ _id:id, isDeleted: false }, data, {
       new: true,
       runValidators: true,
     });
+  },
+
+  softDelete(id: string) {
+    return Admin.findByIdAndUpdate(
+      id,
+      { isDeleted: true, deletedDate: new Date() },
+      { new: true },
+    );
   },
 
   save(admin: IAdmin) {

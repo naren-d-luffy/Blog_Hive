@@ -4,6 +4,10 @@ import { adminLoginSchema, createAdminSchema } from "./admin.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 
+interface params {
+  id: string;
+}
+
 export const adminController = {
   async createAdmin(req: Request, res: Response, next: NextFunction) {
     try {
@@ -17,11 +21,11 @@ export const adminController = {
 
       res.status(201).json({
         success: true,
-        message: "Admin Fetched Successfully",
+        message: "Admin Created Successfully",
         data: admin,
       });
     } catch (error) {
-      return next(new AppError("Error Creating Admin", 400, { error }));
+      next(error);
     }
   },
 
@@ -38,7 +42,7 @@ export const adminController = {
         data: result,
       });
     } catch (error) {
-      return next(new AppError("Error fetching admin", 400, { error }));
+      next(error);
     }
   },
 
@@ -46,8 +50,8 @@ export const adminController = {
     try {
       const id = req.user?.id;
 
-      if(!id){
-        return next(new AppError("Id is required",400))
+      if (!id) {
+        return next(new AppError("Id is required", 400));
       }
 
       const fetchedAdmin = await adminService.findAdminById(id);
@@ -61,7 +65,7 @@ export const adminController = {
         data: fetchedAdmin,
       });
     } catch (error) {
-      return next(new AppError("Error Fetching Admin", 400, { error }));
+      next(error);
     }
   },
 
@@ -89,7 +93,7 @@ export const adminController = {
         access: accessToken,
       });
     } catch (error) {
-      return next(new AppError("Error login Admin", 400, { error }));
+      next(error);
     }
   },
 
@@ -114,7 +118,67 @@ export const adminController = {
         message: "Logged out Successfully",
       });
     } catch (error) {
-      return next(new AppError("Error logging out Admin", 400, { error }));
+      next(error);
+    }
+  },
+
+  async updateStatus(req: Request<params>, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const updated = await adminService.updateStatus(id, status);
+      res.status(200).json({
+        success: true,
+        message: "Admin status updated successfully",
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async softDelete(req: Request<params>, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+
+      const deleted = await adminService.softDelete(id);
+
+      res.status(200).json({
+        success: true,
+        message: "Admin deleted successfully",
+        data: deleted,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async refreshToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token = req.cookies?.refreshToken;
+      if (!token) res.status(401).json({ message: "Token is required" });
+
+      const { accessToken, refreshToken, safeData } =
+        await adminService.postRefresh(token);
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res
+        .status(200)
+        .json({
+          success: true,
+          message: "Tokens Refreshed Successfully",
+          accessToken: accessToken,
+          admin: safeData,
+        });
+    } catch (error) {
+      next(error);
     }
   },
 };

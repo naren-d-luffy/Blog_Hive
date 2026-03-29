@@ -11,6 +11,7 @@ const envSchema = z.object({
   REFRESH_TOKEN: z.string().min(32, "Refresh Token should be 32 characters long"),
   LOGIN_FAILURE_COUNT: z.coerce.number().min(1).default(3),
   LOCK_UNTIL_TIME: z.coerce.number().min(1).default(15),
+  REDIS_URL: z.string().min(1, "Redis URL is required")
 });
 
 const parsed = envSchema.safeParse(process.env);

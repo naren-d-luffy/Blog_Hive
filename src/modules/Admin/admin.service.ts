@@ -16,7 +16,7 @@ const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME * 60 * 1000;
 export const adminService = {
   checkId(id: string) {
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new AppError("Invalid Admin Id", 400);
+      throw new AppError("Invalid Id", 400);
     }
   },
 
@@ -63,6 +63,7 @@ export const adminService = {
   },
 
   async findAdminById(id: string) {
+    this.checkId(id);
     const result = await adminRepository.findById(id);
     const sanitizedResult = this.sanitizeAdmin(result);
     return sanitizedResult;
@@ -122,6 +123,7 @@ export const adminService = {
   },
 
   async updateStatus(id: string, status: "active" | "inactive") {
+    this.checkId(id);
     const updated = await adminRepository.update(id, { status });
     if (!updated) throw new AppError("Error updating the Admin status", 400);
     const sanitizedData = this.sanitizeAdmin(updated);
@@ -129,6 +131,7 @@ export const adminService = {
   },
 
   async softDelete(id: string) {
+    this.checkId(id);
     const deleted = await adminRepository.softDelete(id);
     if (!deleted) throw new AppError("Error Deleting Admin", 400);
     const sanitizedAdmin = this.sanitizeAdmin(deleted);

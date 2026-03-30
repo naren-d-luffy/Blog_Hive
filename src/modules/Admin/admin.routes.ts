@@ -1,11 +1,12 @@
 import express from "express";
 import { adminController } from "./admin.controller";
 import {Authenticate,Authorize} from "../../middleware/auth.middleware";
+import { loginRateLimiter } from "../../middleware/login.rateLimiter";
 
 const router = express.Router();
 
 router.post('/', adminController.createAdmin);
-router.post('/login', adminController.login);
+router.post('/login',loginRateLimiter, adminController.login);
 router.post('/refresh', adminController.refreshToken);
 
 router.use(Authenticate,Authorize("admin"));

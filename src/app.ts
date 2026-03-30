@@ -3,6 +3,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import errorHandler from "./middleware/error.middleware";
 import router from "./router/index";
+import { rateLimiter } from "./middleware/global.rateLimiter";
 const app = express()
 
 app.use(helmet());
@@ -10,6 +11,8 @@ app.use(cookieParser());
 
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
+
+app.use(rateLimiter);
 
 app.get("/",(req:Request, res:Response)=>{
     res.json({message:"Api is running fine."})

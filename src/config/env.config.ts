@@ -16,6 +16,7 @@ const envSchema = z.object({
   LOGIN_BUCKET_REFILLRATE : z.coerce.number().default(0.05),
   GLOBAL_BUCKET_CAPACITY : z.coerce.number().min(1).default(5),
   GLOBAL_BUCKET_REFILLRATE : z.coerce.number().default(0.1),
+  MAX_SLUG_LENGTH : z.coerce.number().min(1).default(80),
 });
 
 const parsed = envSchema.safeParse(process.env);

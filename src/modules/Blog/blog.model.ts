@@ -17,6 +17,7 @@ const blogSchema = new Schema<IBlog>(
     likes: { type: [{ type: Schema.Types.ObjectId, ref: "User" }], select: false },
     likeCount: { type: Number, default: 0, },
     comments: { type: [{ type: Schema.Types.ObjectId, ref: "Comment" }], select: false },
+    commentCount : {type: Number, default:0},
     popularityScore : {type: Number, default:0},
 
     isDeleted: { type: Boolean, default: false,  },

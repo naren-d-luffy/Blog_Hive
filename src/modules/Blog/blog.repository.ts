@@ -7,7 +7,7 @@ export const blogRepository = {
   },
 
   findById(id: string) {
-    return Blog.findById({ _id: id, isDeleted: false });
+    return Blog.findOne({ _id: id, isDeleted: false });
   },
 
   findBySlug(slug: string) {
@@ -62,6 +62,17 @@ export const blogRepository = {
       .lean();
   },
 
+  findBySlugByRegex(regex: RegExp, excludedId?: string) {
+    return Blog.find(
+      {
+        slug: regex,
+        isDeleted: false,
+        ...(excludedId && { _id: { $ne: excludedId } }),
+      },
+      { slug: 1 },
+    ).lean();
+  },
+
   search(query: string, skip: number, limit: number) {
     return Blog.find(
       { isDeleted: false, status: "published", $text: { $search: query } },
@@ -93,6 +104,14 @@ export const blogRepository = {
     });
   },
 
+  countByAuthor(userId: string) {
+    return Blog.countDocuments({
+      createdBy: userId,
+      isDeleted: false,
+      status: "published",
+    });
+  },
+
   countSearch(query: string) {
     return Blog.countDocuments({
       isDeleted: false,
@@ -118,7 +137,7 @@ export const blogRepository = {
   addComment(blogId: string, commentId: string) {
     return Blog.updateOne(
       { _id: blogId, isDeleted: false },
-      { $push: { comments: commentId } },
+      { $addToSet: { comments: commentId }, $inc: { commentCount: 1 } },
     );
   },
 

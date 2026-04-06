@@ -15,6 +15,7 @@ export interface IBlog extends Document {
     likes: Types.ObjectId[],
     likeCount : number,
     comments: Types.ObjectId[],
+    commentCount: number,
     popularityScore: number,
     
     isDeleted: Boolean,

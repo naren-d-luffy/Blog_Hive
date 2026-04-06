@@ -7,6 +7,7 @@ import AppError from "../../utils/AppError";
 import { IUser } from "./user.interface";
 import { UserLoginInput, CreateUserInput } from "./user.validator";
 import { AuthUser } from "../../types/auth.types";
+import checkId from "../../utils/CheckId";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -14,12 +15,6 @@ const FAILURE_COUNT = env.LOGIN_FAILURE_COUNT;
 const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME * 60 * 1000;
 
 export const userService = {
-  checkId(id: string) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new AppError("Invalid Id", 400);
-    }
-  },
-
   sanitizeUser(user: Partial<IUser> | null) {
     if (!user) return null;
     return {
@@ -63,7 +58,7 @@ export const userService = {
   },
 
   async findUserById(id: string) {
-    this.checkId(id);
+    checkId(id);
     const result = await userRepository.findById(id);
     const sanitizedResult = this.sanitizeUser(result);
     return sanitizedResult;
@@ -113,7 +108,7 @@ export const userService = {
   },
 
   async logoutUser(id: string) {
-    this.checkId(id);
+    checkId(id);
 
     const user = await userRepository.findById(id);
     if (!user) throw new AppError("User not found or deleted", 404);
@@ -123,7 +118,7 @@ export const userService = {
   },
 
   async updateStatus(id: string, status: "active" | "inactive") {
-    this.checkId(id);
+    checkId(id);
     const updated = await userRepository.update(id, { status });
     if (!updated) throw new AppError("Error updating the User status", 400);
     const sanitizedData = this.sanitizeUser(updated);
@@ -131,7 +126,7 @@ export const userService = {
   },
 
   async softDelete(id: string) {
-    this.checkId(id);
+    checkId(id);
     const deleted = await userRepository.softDelete(id);
     if (!deleted) throw new AppError("Error Deleting User", 400);
     const sanitizedUser = this.sanitizeUser(deleted);

@@ -1,12 +1,14 @@
 import express from "express";
 import adminRouter from "../modules/Admin/admin.routes"
 import userRouter from "../modules/User/user.routes"
+import blogRouter from "../modules/Blog/blog.router"
 
 const router = express.Router();
 
 const routes = [
     {path:"/admin", route: adminRouter},
     {path:"/user", route: userRouter},
+    {path:"/blog", route: blogRouter},
 ]
 
 routes.forEach(route=> {

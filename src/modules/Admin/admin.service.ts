@@ -7,6 +7,7 @@ import { IAdmin } from "./admin.interface";
 import { AdminLoginInput, CreateAdminInput } from "./admin.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId"
+import redisClient from "../../config/redis.config";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -39,6 +40,14 @@ export const adminService = {
   },
 
   async findAllAdmin(page: number, limit: number) {
+    const cacheKey = `admins:${page}:${limit}`;
+
+    const cached = await redisClient.get(cacheKey);
+    if(cached){
+      console.log("Cache hit");
+      return JSON.parse(cached);
+    }
+    
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
@@ -47,19 +56,32 @@ export const adminService = {
     ]);
     const sanitizedData = data.map((admin) => this.sanitizeAdmin(admin));
 
-    return {
+    const result = {
       sanitizedData,
       total,
       page,
       limit,
       totalPage: Math.ceil(total / limit),
     };
+
+    await redisClient.set(cacheKey,JSON.stringify(result),{"EX": 60});
+    return result;
   },
 
   async findAdminById(id: string) {
     checkId(id);
+
+    const cacheKey = `admin:${id}`
+    const cached = await redisClient.get(cacheKey);
+    if(cached){
+      console.log("Cache hit");
+      return JSON.parse(cached);
+    }
+
     const result = await adminRepository.findById(id);
     const sanitizedResult = this.sanitizeAdmin(result);
+
+    await redisClient.set(cacheKey,JSON.stringify(sanitizedResult),{"EX":60});
     return sanitizedResult;
   },
 
@@ -121,6 +143,7 @@ export const adminService = {
     const updated = await adminRepository.update(id, { status });
     if (!updated) throw new AppError("Error updating the Admin status", 400);
     const sanitizedData = this.sanitizeAdmin(updated);
+    await redisClient.del(`admin:${id}`);
     return sanitizedData;
   },
 
@@ -129,6 +152,7 @@ export const adminService = {
     const deleted = await adminRepository.softDelete(id);
     if (!deleted) throw new AppError("Error Deleting Admin", 400);
     const sanitizedAdmin = this.sanitizeAdmin(deleted);
+    await redisClient.del(`admin:${id}`);
     return sanitizedAdmin;
   },
 

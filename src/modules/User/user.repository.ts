@@ -27,7 +27,7 @@ export const userRepository = {
 
   update(id: string, data: Partial<IUser>) {
     return User.findByIdAndUpdate({ _id:id, isDeleted: false }, data, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
   },
@@ -36,7 +36,7 @@ export const userRepository = {
     return User.findByIdAndUpdate(
       id,
       { isDeleted: true, deletedDate: new Date() },
-      { new: true },
+      { returnDocument: "after" },
     );
   },
 

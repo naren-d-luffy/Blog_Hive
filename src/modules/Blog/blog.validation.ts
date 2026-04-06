@@ -9,7 +9,6 @@ const objectId = z
 export const createBlogSchema = z.object({
   heading: z.string().min(3, "Heading must be at least 3 characters").max(150, "Heading too long").trim(),
   content: z.string().min(10, "Content must be at least 10 characters"),
-  createdBy: objectId,
   tags: z.array(z.string().trim()).optional(),
   category: z.array(z.string().trim()).optional(),
   status: z.enum(["draft", "published", "archived"]).optional(),

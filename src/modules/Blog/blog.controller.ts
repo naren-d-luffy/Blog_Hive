@@ -2,20 +2,11 @@ import { blogService } from "./blog.service";
 import { Response, Request, NextFunction } from "express";
 import { createBlogSchema, updateBlogSchema } from "./blog.validation";
 import AppError from "../../utils/AppError";
+import { str } from "../../utils/toString";
 
 // ─────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────
-
-/**
- * Normalises a req.query or req.params value to a plain string.
- * Handles string | string[] | ParsedQs | ParsedQs[].
- */
-const str = (value: unknown): string => {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value) && typeof value[0] === "string") return value[0] as string;
-  return "";
-};
 
 function parsePagination(query: Request["query"]): { page: number; limit: number } {
   const page  = Math.max(1,   parseInt(str(query.page)  || "1",  10) || 1);
@@ -32,11 +23,12 @@ export const blogController = {
 
   async createBlog(req: Request, res: Response, next: NextFunction) {
     try {
+      const id :string = (req as any).user?.id;
       const result = createBlogSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ success: false, message: "Validation failed", errors: result.error.flatten() });
       }
-      const blog = await blogService.createBlog(result.data);
+      const blog = await blogService.createBlog(result.data, id);
       return res.status(201).json({ success: true, message: "Blog created successfully", data: blog });
     } catch (error) {
       next(error);

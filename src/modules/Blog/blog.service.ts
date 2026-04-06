@@ -79,7 +79,7 @@ export const blogService = {
 
   // ── Create ────────────────────────────────────────
 
-  async createBlog(blogData: CreateBlogInput) {
+  async createBlog(blogData: CreateBlogInput, id:string) {
     // generateUniqueSlug(heading, excludedId?)
     // No excludedId on creation — pass heading only
     const slug = await generateUniqueSlug(blogData.heading);
@@ -87,7 +87,7 @@ export const blogService = {
     const newBlog = await blogRepository.create({
       ...blogData,
       slug,
-      createdBy: new mongoose.Types.ObjectId(blogData.createdBy),
+      createdBy: new mongoose.Types.ObjectId(id),
     });
 
     return this.sanitizeBlog(newBlog);
@@ -166,7 +166,7 @@ export const blogService = {
     // current slug is excluded from the uniqueness check during updates.
     let slug = existing.slug;
     if (updateData.heading && updateData.heading !== existing.heading) {
-      slug = await generateUniqueSlug(updateData.heading, blogId);
+      slug = await generateUniqueSlug(updateData.heading,{excludedId: blogId});
     }
 
     const updated = await blogRepository.update(blogId, {
@@ -207,7 +207,7 @@ export const blogService = {
     checkId(blogId);
     const blog = await blogRepository.findById(blogId);
     if (!blog) throw new AppError("Blog not found", 404);
-    await blogRepository.incrementView(blogId);
+    await blogRepository.incrementView(blogId).lean();
     await blogQueue.add(BLOG_JOBS.UPDATE_POPULARITY, { blogId }, QUEUE_OPTS);
   },
 

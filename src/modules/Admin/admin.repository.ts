@@ -27,7 +27,7 @@ export const adminRepository = {
 
   update(id: string, data: Partial<IAdmin>) {
     return Admin.findByIdAndUpdate({ _id:id, isDeleted: false }, data, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
   },
@@ -36,7 +36,7 @@ export const adminRepository = {
     return Admin.findByIdAndUpdate(
       id,
       { isDeleted: true, deletedDate: new Date() },
-      { new: true },
+      { returnDocument: "after" },
     );
   },
 

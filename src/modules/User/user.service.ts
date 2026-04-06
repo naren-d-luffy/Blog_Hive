@@ -2,12 +2,12 @@ import env from "../../config/env.config";
 import { userRepository } from "./user.repository";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import AppError from "../../utils/AppError";
 import { IUser } from "./user.interface";
 import { UserLoginInput, CreateUserInput } from "./user.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
+import redisClient from "../../config/redis.config";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -40,6 +40,12 @@ export const userService = {
   },
 
   async findAllUser(page: number, limit: number) {
+    const cacheKey = `user:${page}:${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
@@ -48,19 +54,30 @@ export const userService = {
     ]);
     const sanitizedData = data.map((user) => this.sanitizeUser(user));
 
-    return {
+    const result = {
       sanitizedData,
       total,
       page,
       limit,
       totalPage: Math.ceil(total / limit),
     };
+
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
   },
 
   async findUserById(id: string) {
     checkId(id);
+    const cacheKey = `user:${id}`;
+    const cached = await redisClient.get(cacheKey);
+    if(cached){
+      return JSON.parse(cached);
+    }
+
     const result = await userRepository.findById(id);
     const sanitizedResult = this.sanitizeUser(result);
+
+    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), {"EX":60});
+
     return sanitizedResult;
   },
 
@@ -122,6 +139,7 @@ export const userService = {
     const updated = await userRepository.update(id, { status });
     if (!updated) throw new AppError("Error updating the User status", 400);
     const sanitizedData = this.sanitizeUser(updated);
+    await redisClient.del(`user:${id}`);
     return sanitizedData;
   },
 
@@ -130,6 +148,7 @@ export const userService = {
     const deleted = await userRepository.softDelete(id);
     if (!deleted) throw new AppError("Error Deleting User", 400);
     const sanitizedUser = this.sanitizeUser(deleted);
+    await redisClient.del(`user:${id}`);
     return sanitizedUser;
   },
 
@@ -141,7 +160,7 @@ export const userService = {
       throw new AppError("Invalid or expired refresh token", 403);
     }
 
-    const userDoc = (await userRepository.findById(decode.id));
+    const userDoc = await userRepository.findById(decode.id);
     if (!userDoc) throw new AppError("User not found", 404);
 
     if (!userDoc.refreshToken) {
@@ -156,7 +175,7 @@ export const userService = {
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
     const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
     const hashedRefresh = await bcrypt.hash(refreshToken, 10);
-    
+
     await userRepository.update(userDoc.id, {
       refreshToken: hashedRefresh,
     });

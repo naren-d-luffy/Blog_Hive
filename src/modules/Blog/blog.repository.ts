@@ -122,7 +122,7 @@ export const blogRepository = {
 
   update(id: string, data: Partial<IBlog>) {
     return Blog.findByIdAndUpdate({ _id: id, isDeleted: false }, data, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
   },
@@ -157,7 +157,7 @@ export const blogRepository = {
         deletedBy: userId,
         deletedByModel: actorModel,
       },
-      { new: true },
+      { returnDocument: "after" },
     );
   },
 

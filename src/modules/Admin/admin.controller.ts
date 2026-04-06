@@ -3,6 +3,7 @@ import { adminService } from "./admin.service";
 import { adminLoginSchema, createAdminSchema } from "./admin.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
+import { str } from "../../utils/toString";
 
 interface params {
   id: string;
@@ -124,7 +125,7 @@ export const adminController = {
 
   async updateStatus(req: Request<params>, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = str(req.params.id);
       const { status } = req.body;
 
       const updated = await adminService.updateStatus(id, status);
@@ -140,7 +141,7 @@ export const adminController = {
 
   async softDelete(req: Request<params>, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = str(req.params.id);
 
       const deleted = await adminService.softDelete(id);
 

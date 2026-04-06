@@ -3,6 +3,7 @@ import { userService } from "./user.service";
 import { userLoginSchema, createUserSchema } from "./user.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
+import { str } from "../../utils/toString";
 
 type IdRequest = Request<{ id: string }>;
 
@@ -122,7 +123,7 @@ export const userController = {
 
   async updateStatus(req: IdRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = str(req.params.id);
       const { status } = req.body;
 
       const updated = await userService.updateStatus(id, status);
@@ -138,7 +139,7 @@ export const userController = {
 
   async softDelete(req: IdRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = str(req.params.id);
 
       const deleted = await userService.softDelete(id);
 

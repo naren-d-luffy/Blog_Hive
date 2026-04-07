@@ -6,9 +6,13 @@ import router from "./router/index";
 import { rateLimiter } from "./middleware/global.rateLimiter";
 import mongoose from "mongoose";
 import redisClient from "./config/redis.config";
+import corsConfig from "./config/cors.config";
 const app = express()
 
+
 app.use(helmet());
+app.use(corsConfig);
+
 app.use(cookieParser());
 
 app.use(express.json({limit:"10kb"}));

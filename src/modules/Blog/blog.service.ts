@@ -1,5 +1,5 @@
 import { blogRepository } from "./blog.repository";
-import { blogQueue } from "../../config/queue.config"; // Must be a `Queue` instance — see note below
+import { blogQueue } from "../../config/queue.config";
 import { IBlog } from "./blog.interface";
 import AppError from "../../utils/AppError";
 import checkId from "../../utils/CheckId";
@@ -8,16 +8,7 @@ import { calculatePopularity } from "../../utils/calculatePopularity";
 import { CreateBlogInput, UpdateBlogInput } from "./blog.validation";
 import { BLOG_JOBS } from "../../queues/blog.queue";
 import mongoose from "mongoose";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// IMPORTANT — queue.config.ts must export a `Queue`, not a `QueueEvents`.
-// QueueEvents is a listener only and has no .add() method.
-//
-//   import { Queue, QueueEvents } from "bullmq";
-//   export const blogQueue       = new Queue("blog", { connection });
-//   export const blogQueueEvents = new QueueEvents("blog", { connection });
-//
-// ─────────────────────────────────────────────────────────────────────────────
+import redisClient from "../../config/redis.config";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -74,12 +65,20 @@ export const blogService = {
     limit: number,
   ): PaginatedResult<T> {
     const totalPages = Math.ceil(total / limit);
-    return { data, total, page, limit, totalPages, hasNextPage: page < totalPages, hasPrevPage: page > 1 };
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
   },
 
   // ── Create ────────────────────────────────────────
 
-  async createBlog(blogData: CreateBlogInput, id:string) {
+  async createBlog(blogData: CreateBlogInput, id: string) {
     // generateUniqueSlug(heading, excludedId?)
     // No excludedId on creation — pass heading only
     const slug = await generateUniqueSlug(blogData.heading);
@@ -96,63 +95,176 @@ export const blogService = {
   // ── Read (lists) ──────────────────────────────────
 
   async getAllBlogs(page: number, limit: number) {
+    const cacheKey = `allBlog:${page}:${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([blogRepository.findAll(skip, limit), blogRepository.totalCount()]);
-    return this.buildPaginatedResponse(data.map((b) => this.sanitizeBlog(b)!), total, page, limit);
+    const [data, total] = await Promise.all([
+      blogRepository.findAll(skip, limit),
+      blogRepository.totalCount(),
+    ]);
+    const result = this.buildPaginatedResponse(
+      data.map((b) => this.sanitizeBlog(b)!),
+      total,
+      page,
+      limit,
+    );
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    return result
   },
 
   async getAllByPopularity(page: number, limit: number) {
+    const cacheKey = `allPopularBlog:${page}:${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([blogRepository.findAllByPolularity(skip, limit), blogRepository.totalCount()]);
-    return this.buildPaginatedResponse(data.map((b) => this.sanitizeBlog(b)!), total, page, limit);
+    const [data, total] = await Promise.all([
+      blogRepository.findAllByPolularity(skip, limit),
+      blogRepository.totalCount(),
+    ]);
+    const result = this.buildPaginatedResponse(
+      data.map((b) => this.sanitizeBlog(b)!),
+      total,
+      page,
+      limit,
+    );
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    return result
   },
 
   async getAllByCategory(category: string, page: number, limit: number) {
+    const cacheKey = `allBlogByCategory:${category}:${page}:${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([blogRepository.findByCategory(category, skip, limit), blogRepository.countByCategory(category)]);
-    return this.buildPaginatedResponse(data.map((b) => this.sanitizeBlog(b)!), total, page, limit);
+    const [data, total] = await Promise.all([
+      blogRepository.findByCategory(category, skip, limit),
+      blogRepository.countByCategory(category),
+    ]);
+    const result = this.buildPaginatedResponse(
+      data.map((b) => this.sanitizeBlog(b)!),
+      total,
+      page,
+      limit,
+    );
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    return result
   },
 
   async getAllByTag(tag: string, page: number, limit: number) {
+    const cacheKey = `allBlogByTag:${tag}:${page}:${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([blogRepository.findByTag(tag, skip, limit), blogRepository.countByTag(tag)]);
-    return this.buildPaginatedResponse(data.map((b) => this.sanitizeBlog(b)!), total, page, limit);
+    const [data, total] = await Promise.all([
+      blogRepository.findByTag(tag, skip, limit),
+      blogRepository.countByTag(tag),
+    ]);
+    const result = this.buildPaginatedResponse(
+      data.map((b) => this.sanitizeBlog(b)!),
+      total,
+      page,
+      limit,
+    );
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    return result
   },
 
   async getAllByAuthor(userId: string, page: number, limit: number) {
+    const cacheKey = `allBlogByAuthor:${userId}:${page}:${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
     checkId(userId);
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([blogRepository.findByAuthor(userId, skip, limit), blogRepository.countByAuthor(userId)]);
-    return this.buildPaginatedResponse(data.map((b) => this.sanitizeBlog(b)!), total, page, limit);
+    const [data, total] = await Promise.all([
+      blogRepository.findByAuthor(userId, skip, limit),
+      blogRepository.countByAuthor(userId),
+    ]);
+    const result = this.buildPaginatedResponse(
+      data.map((b) => this.sanitizeBlog(b)!),
+      total,
+      page,
+      limit,
+    );
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    return result;
   },
 
   async searchBlogs(query: string, page: number, limit: number) {
-    if (!query || query.trim().length < 2) throw new AppError("Search query must be at least 2 characters", 400);
+    if (!query || query.trim().length < 2)
+      throw new AppError("Search query must be at least 2 characters", 400);
     const skip = (page - 1) * limit;
     const trimmedQuery = query.trim();
-    const [data, total] = await Promise.all([blogRepository.search(trimmedQuery, skip, limit), blogRepository.countSearch(trimmedQuery)]);
-    return this.buildPaginatedResponse(data.map((b) => this.sanitizeBlog(b)!), total, page, limit);
+    const cacheKey = `search:${trimmedQuery}:${page}:${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      console.log("Search cache hit");
+      return JSON.parse(cached);
+    }
+    const [data, total] = await Promise.all([
+      blogRepository.search(trimmedQuery, skip, limit),
+      blogRepository.countSearch(trimmedQuery),
+    ]);
+    const result = this.buildPaginatedResponse(
+      data.map((b) => this.sanitizeBlog(b)!),
+      total,
+      page,
+      limit,
+    );
+    await redisClient.set(cacheKey,JSON.stringify(result),{"EX":30})
+    return result;
   },
 
   // ── Read (single) ─────────────────────────────────
 
   async getById(blogId: string) {
     checkId(blogId);
+    const cacheKey = `blog:${blogId}`;
+    const cached = await redisClient.get(cacheKey);
+    if(cached){
+      return JSON.parse(cached);
+    }
     const blog = await blogRepository.findById(blogId);
     if (!blog) throw new AppError("Blog not found", 404);
-    return this.sanitizeBlog(blog);
+    const result = this.sanitizeBlog(blog);
+    await redisClient.set(cacheKey,JSON.stringify(result),{"EX":60});
+    return result;
   },
 
   async getBySlug(slug: string) {
-    if (!slug || slug.trim().length === 0) throw new AppError("Slug is required", 400);
-    const blog = await blogRepository.findBySlug(slug.trim());
+    const slugTrimmed = slug.trim();
+    if (!slug || slugTrimmed.length === 0)
+      throw new AppError("Slug is required", 400);
+    const cacheKey = `slug:${slugTrimmed}`;
+    const cached = await redisClient.get(cacheKey);
+    if(cached){
+      return JSON.parse(cached);
+    }
+    const blog = await blogRepository.findBySlug(slugTrimmed);
     if (!blog) throw new AppError("Blog not found", 404);
-    return this.sanitizeBlog(blog);
+    const result = this.sanitizeBlog(blog);
+    await redisClient.set(cacheKey, JSON.stringify(result),{"EX":60});
+    return result;
   },
 
   // ── Update ────────────────────────────────────────
 
-  async updateBlog(blogId: string, updateData: UpdateBlogInput, requesterId: string, requesterRole: "User" | "Admin") {
+  async updateBlog(
+    blogId: string,
+    updateData: UpdateBlogInput,
+    requesterId: string,
+    requesterRole: "User" | "Admin",
+  ) {
     checkId(blogId);
     checkId(requesterId);
 
@@ -160,22 +272,27 @@ export const blogService = {
     if (!existing) throw new AppError("Blog not found", 404);
 
     const isOwner = existing.createdBy.toString() === requesterId;
-    if (!isOwner && requesterRole !== "Admin") throw new AppError("Forbidden: you do not own this blog", 403);
+    if (!isOwner && requesterRole !== "Admin")
+      throw new AppError("Forbidden: you do not own this blog", 403);
 
     // generateUniqueSlug(heading, excludedId?) — pass blogId as second arg so the
     // current slug is excluded from the uniqueness check during updates.
     let slug = existing.slug;
     if (updateData.heading && updateData.heading !== existing.heading) {
-      slug = await generateUniqueSlug(updateData.heading,{excludedId: blogId});
+      await redisClient.del(`slug:${slug.trim()}`);
+      slug = await generateUniqueSlug(updateData.heading, {
+        excludedId: blogId,
+      });
     }
-
+    
     const updated = await blogRepository.update(blogId, {
       ...updateData,
       slug,
       updatedBy: new mongoose.Types.ObjectId(requesterId),
     });
-
+    
     if (!updated) throw new AppError("Blog update failed", 500);
+    await redisClient.del(`blog:${blogId}`);
 
     const newScore = calculatePopularity(updated);
     await blogRepository.updatePopularityScore(blogId, newScore);
@@ -185,7 +302,11 @@ export const blogService = {
 
   // ── Delete ────────────────────────────────────────
 
-  async deleteBlog(blogId: string, requesterId: string, requesterRole: "User" | "Admin") {
+  async deleteBlog(
+    blogId: string,
+    requesterId: string,
+    requesterRole: "User" | "Admin",
+  ) {
     checkId(blogId);
     checkId(requesterId);
 
@@ -193,10 +314,16 @@ export const blogService = {
     if (!existing) throw new AppError("Blog not found", 404);
 
     const isOwner = existing.createdBy.toString() === requesterId;
-    if (!isOwner && requesterRole !== "Admin") throw new AppError("Forbidden: you do not own this blog", 403);
+    if (!isOwner && requesterRole !== "Admin")
+      throw new AppError("Forbidden: you do not own this blog", 403);
 
-    const deleted = await blogRepository.softDelete(blogId, requesterId, requesterRole);
+    const deleted = await blogRepository.softDelete(
+      blogId,
+      requesterId,
+      requesterRole,
+    );
     if (!deleted) throw new AppError("Blog deletion failed", 500);
+    await redisClient.del(`blog:${blogId}`)
 
     return { id: blogId, deleted: true };
   },
@@ -219,7 +346,8 @@ export const blogService = {
     if (!blog) throw new AppError("Blog not found", 404);
 
     const result = await blogRepository.incrementLike(blogId, userId);
-    if (result.modifiedCount === 0) throw new AppError("You have already liked this blog", 409);
+    if (result.modifiedCount === 0)
+      throw new AppError("You have already liked this blog", 409);
 
     await blogQueue.add(BLOG_JOBS.UPDATE_POPULARITY, { blogId }, QUEUE_OPTS);
     return { liked: true };
@@ -233,7 +361,8 @@ export const blogService = {
     if (!blog) throw new AppError("Blog not found", 404);
 
     const result = await blogRepository.decrementLikes(blogId, userId);
-    if (result.modifiedCount === 0) throw new AppError("You have not liked this blog", 409);
+    if (result.modifiedCount === 0)
+      throw new AppError("You have not liked this blog", 409);
 
     await blogQueue.add(BLOG_JOBS.UPDATE_POPULARITY, { blogId }, QUEUE_OPTS);
     return { unliked: true };

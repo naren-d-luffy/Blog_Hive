@@ -17,6 +17,7 @@ const envSchema = z.object({
   GLOBAL_BUCKET_CAPACITY : z.coerce.number().min(1).default(5),
   GLOBAL_BUCKET_REFILLRATE : z.coerce.number().default(0.1),
   MAX_SLUG_LENGTH : z.coerce.number().min(1).default(80),
+  CORS_ORGINS : z.string().min(1, "CORS_ORIGINS is required").transform((val)=>val.split(",").map((origin)=>origin.trim())),
 });
 
 const parsed = envSchema.safeParse(process.env);

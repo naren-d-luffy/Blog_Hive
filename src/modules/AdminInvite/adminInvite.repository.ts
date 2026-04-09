@@ -1,8 +1,8 @@
 import { IAdminInvite } from "./adminInvite.interface";
 import AdminInvite from "./adminInvite.model";
 
-export const adminRepository = {
-  async create(inviteData: IAdminInvite) {
+export const adminInviteRepository = {
+  async create(inviteData: Partial<IAdminInvite>) {
     return AdminInvite.create(inviteData);
   },
 

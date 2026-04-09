@@ -23,6 +23,7 @@ const envSchema = z.object({
   SMTP_PASS: z.string().min(1, "SMTP password is required"),
   EMAIL_FROM: z.string().min(1, "Email from is required"),
   FRONTEND_URL: z.string().url("Frontend URL must be valid"),
+  CORS_ORGINS : z.string().min(1, "CORS_ORIGINS is required").transform((val)=>val.split(",").map((origin)=>origin.trim())),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "ts-node-dev --respawn src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "worker:blog": "ts-node src/queues/workers/blog.worker.ts",
+    "worker:email": "ts-node src/queues/workers/email.worker.ts",
+    "worker": "concurrently \"npm run worker:blog\" \"npm run worker:email\""
   },
   "keywords": [],
   "author": "",
@@ -37,6 +40,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
     "@types/nodemailer": "^8.0.0",
+    "concurrently": "^9.2.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }

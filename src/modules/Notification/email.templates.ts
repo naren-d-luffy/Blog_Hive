@@ -251,20 +251,6 @@ const baseStyles = `
     color: #5b4a8a;
     text-decoration: none;
   }
-
-  .dots-row {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 20px;
-  }
-
-  .dot {
-    width: 4px; height: 4px;
-    border-radius: 50%;
-    background: rgba(139,92,246,0.25);
-  }
-  .dot.active { background: rgba(139,92,246,0.7); }
 `;
 
 // ─── Shared shell ─────────────────────────────────────────────
@@ -283,11 +269,6 @@ const shell = (content: string, year = new Date().getFullYear()) => `
       <div class="header-bar"></div>
       ${content}
       <div class="footer">
-        <div class="dots-row">
-          <div class="dot active"></div>
-          <div class="dot"></div>
-          <div class="dot"></div>
-        </div>
         <p style="margin-top:20px;">
           You received this email because an action was triggered on your account.<br/>
           If this wasn't you, <a href="#">contact support</a> immediately.
@@ -310,7 +291,7 @@ const logo = `
         <path d="M10 2L17.32 6.5V15.5L10 20L2.68 15.5V6.5L10 2Z" fill="rgba(255,255,255,0.9)"/>
       </svg>
     </div>
-    <span class="logo-text">YourApp</span>
+    <span class="logo-text">Blog Backend</span>
   </div>
 `;
 

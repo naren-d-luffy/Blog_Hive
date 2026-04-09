@@ -7,7 +7,7 @@ import connectDB from "../../config/db.config";
 
 (async () => {
   await connectDB();
-  console.log("🚀 Worker started...");
+  console.log("Worker started...");
   new Worker(
     "blog-queue",
     async (job) => {

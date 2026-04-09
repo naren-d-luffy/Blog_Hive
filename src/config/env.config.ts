@@ -17,6 +17,12 @@ const envSchema = z.object({
   GLOBAL_BUCKET_CAPACITY : z.coerce.number().min(1).default(5),
   GLOBAL_BUCKET_REFILLRATE : z.coerce.number().default(0.1),
   MAX_SLUG_LENGTH : z.coerce.number().min(1).default(80),
+  SMTP_HOST: z.string().min(1, "SMTP host is required"),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().min(1, "SMTP user is required"),
+  SMTP_PASS: z.string().min(1, "SMTP password is required"),
+  EMAIL_FROM: z.string().min(1, "Email from is required"),
+  FRONTEND_URL: z.string().url("Frontend URL must be valid"),
   CORS_ORGINS : z.string().min(1, "CORS_ORIGINS is required").transform((val)=>val.split(",").map((origin)=>origin.trim())),
 });
 

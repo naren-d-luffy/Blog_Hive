@@ -1,9 +1,11 @@
-import { Document, Types } from "mongoose";
+import { Types, Document } from "mongoose";
 
 export interface IAdminInvite extends Document {
-    email: string,
-    token: string,
-    expiryAt: Date,
-    invitedBy: Types.ObjectId,
-    isUsed: boolean,
+  email: string;
+  tokenHash: string;
+  expiryAt: Date;
+  invitedBy: Types.ObjectId;
+  isUsed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }

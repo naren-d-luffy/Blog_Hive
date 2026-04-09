@@ -1,23 +1,23 @@
 import { IAdminInvite } from "./adminInvite.interface";
 import AdminInvite from "./adminInvite.model";
 
-export const adminRepository = {
-  async create(inviteData: IAdminInvite) {
+export const adminInviteRepository = {
+  async create(inviteData: Partial<IAdminInvite>) {
     return AdminInvite.create(inviteData);
   },
 
-  async getByToken(token: string) {
+  async getByToken(tokenHash: string) {
     return AdminInvite.findOne({
-      token,
+      tokenHash,
       expiryAt: { $gt: new Date() },
       isUsed: false,
     });
   },
 
-  async markAsUsed(token: string) {
+  async markAsUsed(tokenHash: string) {
     return AdminInvite.updateOne(
       {
-        token,
+        tokenHash,
         isUsed: false,
         expiryAt: { $gt: new Date() },
       },

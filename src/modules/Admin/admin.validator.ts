@@ -10,6 +10,7 @@ export const createAdminSchema = z.object({
     .regex(/[a-z]/)
     .regex(/[0-9]/),
   status: z.enum(["active", "inactive"]).optional(),
+  token: z.string().min(32,"Invalid Token"),
 }).strict();
 
 export const adminLoginSchema = z.object({

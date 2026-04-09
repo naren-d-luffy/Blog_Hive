@@ -4,6 +4,7 @@ import { adminLoginSchema, createAdminSchema } from "./admin.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
+import { adminInviteService } from "../AdminInvite/adminInvite.service";
 
 interface params {
   id: string;
@@ -12,6 +13,15 @@ interface params {
 export const adminController = {
   async createAdmin(req: Request, res: Response, next: NextFunction) {
     try {
+      const { token } = req.body;
+      if (!token) {
+        return next(new AppError("Invite token is required", 400));
+      }
+      const isValid = await adminInviteService.getAdminInviteByToken(token);
+      if (!isValid) {
+        return next(new AppError("Invalid or expired invite token", 400));
+      }
+
       const result = createAdminSchema.safeParse(req.body);
       if (!result.success) {
         return res
@@ -19,6 +29,9 @@ export const adminController = {
           .json({ success: false, message: result.error.message });
       }
       const admin = await adminService.createAdmin(result.data);
+
+      await adminInviteService.markInviteAsUsed(token);
+      await adminInviteService.invalidateAllByEmail(result.data.email);
 
       res.status(201).json({
         success: true,
@@ -170,14 +183,12 @@ export const adminController = {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Tokens Refreshed Successfully",
-          accessToken: accessToken,
-          admin: safeData,
-        });
+      res.status(200).json({
+        success: true,
+        message: "Tokens Refreshed Successfully",
+        accessToken: accessToken,
+        admin: safeData,
+      });
     } catch (error) {
       next(error);
     }

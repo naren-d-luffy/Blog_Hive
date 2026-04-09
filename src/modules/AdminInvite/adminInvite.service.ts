@@ -1,8 +1,10 @@
 import { Types } from "mongoose";
-import { IAdminInvite } from "./adminInvite.interface";
 import { adminInviteRepository } from "./adminInvite.repository";
 import { createHash } from "crypto";
 import generateToken from "../../utils/generateToken";
+import env from "../../config/env.config";
+import { emailQueue } from "../../config/queue.config";
+import { EMAIL_JOBS } from "../../queues/email.queue";
 
 export const adminInviteService = {
   async createAdminInvite(email: string, id: Types.ObjectId) {
@@ -18,7 +20,14 @@ export const adminInviteService = {
       expiryAt,
       invitedBy: id,
     });
-    // Email needs to be integreated here______________________________________________
+
+    const inviteLink = `${env.FRONTEND_URL}/invite-accept?token=${inviteToken}`;
+
+    await emailQueue.add(EMAIL_JOBS.SEND_ADMIN_INVITE,{
+      email,
+      inviteLink
+    })
+    
     return newAdminInvite ? true : false;
   },
 

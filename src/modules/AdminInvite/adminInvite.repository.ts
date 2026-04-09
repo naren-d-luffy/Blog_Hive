@@ -6,18 +6,18 @@ export const adminInviteRepository = {
     return AdminInvite.create(inviteData);
   },
 
-  async getByToken(token: string) {
+  async getByToken(tokenHash: string) {
     return AdminInvite.findOne({
-      token,
+      tokenHash,
       expiryAt: { $gt: new Date() },
       isUsed: false,
     });
   },
 
-  async markAsUsed(token: string) {
+  async markAsUsed(tokenHash: string) {
     return AdminInvite.updateOne(
       {
-        token,
+        tokenHash,
         isUsed: false,
         expiryAt: { $gt: new Date() },
       },

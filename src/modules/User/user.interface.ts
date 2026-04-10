@@ -7,6 +7,7 @@ export interface IUser extends Document {
   role: "user";
   status: "active" | "inactive";
 
+  csrfToken: string | null;
   refreshToken: string | null;
   isDeleted: boolean;
   deletedDate: Date;

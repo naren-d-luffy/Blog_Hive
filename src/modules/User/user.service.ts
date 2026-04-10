@@ -8,6 +8,7 @@ import { UserLoginInput, CreateUserInput } from "./user.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
 import redisClient from "../../config/redis.config";
+import generateToken from "../../utils/generateToken";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -111,6 +112,12 @@ export const userService = {
     user.failedLoginAttempt = 0;
     user.lastLogin = new Date();
 
+    //CSRF Handler
+    const csrfToken = generateToken({length:32});
+    const hashedCsrf = await bcrypt.hash(csrfToken,10);
+    user.csrfToken = hashedCsrf;
+
+    //Access and Refresh Handler
     const payload: AuthUser = { id: user.id, role: user.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
@@ -121,7 +128,7 @@ export const userService = {
 
     const safeData = this.sanitizeUser(user);
 
-    return { accessToken, refreshToken, safeData };
+    return { accessToken, refreshToken, safeData, csrfToken };
   },
 
   async logoutUser(id: string) {
@@ -152,36 +159,22 @@ export const userService = {
     return sanitizedUser;
   },
 
-  async postRefresh(token: string) {
-    let decode;
-    try {
-      decode = jwt.verify(token, env.REFRESH_TOKEN) as AuthUser;
-    } catch (error) {
-      throw new AppError("Invalid or expired refresh token", 403);
-    }
+  async postRefresh(admin:{id:string, role:"user"}) {
 
-    const userDoc = await userRepository.findById(decode.id);
-    if (!userDoc) throw new AppError("User not found", 404);
-
-    if (!userDoc.refreshToken) {
-      throw new AppError("RefreshToken Expired", 403);
-    }
-
-    const match = await bcrypt.compare(token, userDoc.refreshToken);
-    if (!match) throw new AppError("Refresh token mismatch", 403);
-
-    let payload: AuthUser = { id: userDoc.id, role: userDoc.role };
+    const csrfToken = generateToken({length:32});
+    const hashedCsrf = await bcrypt.hash(csrfToken,10);
+    
+    let payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
     const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
     const hashedRefresh = await bcrypt.hash(refreshToken, 10);
 
-    await userRepository.update(userDoc.id, {
+    await userRepository.update(admin.id, {
       refreshToken: hashedRefresh,
+      csrfToken: hashedCsrf
     });
 
-    const safeData = this.sanitizeUser(userDoc);
-
-    return { accessToken, refreshToken, safeData };
+    return { accessToken, refreshToken, csrfToken };
   },
 };

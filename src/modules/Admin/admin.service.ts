@@ -8,6 +8,8 @@ import { AdminLoginInput, CreateAdminInput } from "./admin.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId"
 import redisClient from "../../config/redis.config";
+import generateToken from "../../utils/generateToken";
+import { cs } from "zod/locales";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -44,7 +46,6 @@ export const adminService = {
 
     const cached = await redisClient.get(cacheKey);
     if(cached){
-      console.log("Cache hit");
       return JSON.parse(cached);
     }
     
@@ -115,6 +116,12 @@ export const adminService = {
     admin.failedLoginAttempt = 0;
     admin.lastLogin = new Date();
 
+    //CSFR Handling
+    const csrfToken = generateToken({length:32});
+    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    admin.csrfToken = hashedCsrf;
+
+    //Access and Refresh Token Handling
     const payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
@@ -125,7 +132,7 @@ export const adminService = {
 
     const safeData = this.sanitizeAdmin(admin);
 
-    return { accessToken, refreshToken, safeData };
+    return { accessToken, refreshToken, safeData, csrfToken };
   },
 
   async logoutAdmin(id: string) {
@@ -156,36 +163,23 @@ export const adminService = {
     return sanitizedAdmin;
   },
 
-  async postRefresh(token: string) {
-    let decode;
-    try {
-      decode = jwt.verify(token, env.REFRESH_TOKEN) as AuthUser;
-    } catch (error) {
-      throw new AppError("Invalid or expired refresh token", 403);
-    }
+  async postRefresh(admin: { id: string; role: "admin" }) {
+    //CSRF Handler
+    const csrfToken = generateToken({length:32});
+    const hashedCsrf = await bcrypt.hash(csrfToken,10);
 
-    const adminDoc = (await adminRepository.findById(decode.id));
-    if (!adminDoc) throw new AppError("Admin not found", 404);
-
-    if (!adminDoc.refreshToken) {
-      throw new AppError("RefreshToken Expired", 403);
-    }
-
-    const match = await bcrypt.compare(token, adminDoc.refreshToken);
-    if (!match) throw new AppError("Refresh token mismatch", 403);
-
-    let payload: AuthUser = { id: adminDoc.id, role: adminDoc.role };
+    //Access and Refresh Handler
+    let payload: AuthUser = { id: admin.id, role: admin.role};
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
     const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
     const hashedRefresh = await bcrypt.hash(refreshToken, 10);
     
-    await adminRepository.update(adminDoc.id, {
+    await adminRepository.update(admin.id, {
       refreshToken: hashedRefresh,
+      csrfToken: hashedCsrf,
     });
 
-    const safeData = this.sanitizeAdmin(adminDoc);
-
-    return { accessToken, refreshToken, safeData };
+    return { accessToken, refreshToken, csrfToken };
   },
 };

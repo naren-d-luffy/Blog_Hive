@@ -38,7 +38,7 @@ export const userController = {
       res.status(200).json({
         success: true,
         message: "users fetched successfully",
-        data: result,
+        data: result.sanitizedData,
         total: result.total,
       });
     } catch (error) {

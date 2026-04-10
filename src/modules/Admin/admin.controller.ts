@@ -49,11 +49,12 @@ export const adminController = {
       const limit = parseInt(req.query.limit as string) || 10;
 
       const result = await adminService.findAllAdmin(page, limit);
-
+      console.log(result);
+      
       res.status(200).json({
         success: true,
         message: "Admins fetched successfully",
-        data: result,
+        data: result.sanitizedData,
         total: result.total,
       });
     } catch (error) {

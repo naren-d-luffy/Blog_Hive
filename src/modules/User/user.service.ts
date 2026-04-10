@@ -70,14 +70,16 @@ export const userService = {
     checkId(id);
     const cacheKey = `user:${id}`;
     const cached = await redisClient.get(cacheKey);
-    if(cached){
+    if (cached) {
       return JSON.parse(cached);
     }
 
     const result = await userRepository.findById(id);
     const sanitizedResult = this.sanitizeUser(result);
 
-    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), {"EX":60});
+    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), {
+      EX: 60,
+    });
 
     return sanitizedResult;
   },
@@ -113,8 +115,8 @@ export const userService = {
     user.lastLogin = new Date();
 
     //CSRF Handler
-    const csrfToken = generateToken({length:32});
-    const hashedCsrf = await bcrypt.hash(csrfToken,10);
+    const csrfToken = generateToken({ length: 32 });
+    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
     user.csrfToken = hashedCsrf;
 
     //Access and Refresh Handler
@@ -159,22 +161,54 @@ export const userService = {
     return sanitizedUser;
   },
 
-  async postRefresh(admin:{id:string, role:"user"}) {
+  async postRefresh(user: { id: string; role: "user" }) {
+    const csrfToken = generateToken({ length: 32 });
+    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
 
-    const csrfToken = generateToken({length:32});
-    const hashedCsrf = await bcrypt.hash(csrfToken,10);
-    
-    let payload: AuthUser = { id: admin.id, role: admin.role };
+    let payload: AuthUser = { id: user.id, role: user.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
     const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
     const hashedRefresh = await bcrypt.hash(refreshToken, 10);
 
-    await userRepository.update(admin.id, {
+    await userRepository.update(user.id, {
       refreshToken: hashedRefresh,
-      csrfToken: hashedCsrf
+      csrfToken: hashedCsrf,
     });
 
     return { accessToken, refreshToken, csrfToken };
+  },
+
+  async changePassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await userRepository.getPasswordById(id);
+    if (!user) throw new AppError("User not found", 400);
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      throw new AppError("Invalid current password", 400);
+    }
+
+    const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+
+    if (isSameAsOld) {
+      throw new AppError("New password cannot be same as old password", 400);
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const updatedUser = await userRepository.update(id, {
+      password: hashed,
+      refreshToken: null,
+      csrfToken: null,
+      lockUntil: null,
+      failedLoginAttempt: 0,
+      lastLogin: new Date(),
+    });
+    const sanitized = this.sanitizeUser(updatedUser);
+    return sanitized;
   },
 };

@@ -2,7 +2,7 @@ import express from "express";
 import { userController } from "./user.controller";
 import {Authenticate,Authorize} from "../../middleware/auth.middleware";
 import { loginRateLimiter } from "../../middleware/login.rateLimiter";
-import { validateCsrf } from "../../middleware/validateCSRF";
+import { validateCsrf } from "../../middleware/validateCsrf";
 
 const router = express.Router();
 

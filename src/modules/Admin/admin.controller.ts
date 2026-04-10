@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { adminService } from "./admin.service";
-import { adminLoginSchema, createAdminSchema } from "./admin.validator";
+import { adminLoginSchema, changePasswordSchema, createAdminSchema } from "./admin.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
@@ -218,4 +218,19 @@ export const adminController = {
       next(error);
     }
   },
+
+  async changePassword(req:Request, res:Response, next:NextFunction) {
+    try {
+    const id = str(req.user?.id);
+    const result = changePasswordSchema.parse(req.body);
+    const admin = await adminService.changePassword(id, result.currentPassword, result.newPassword);
+    res.status(200).json({
+      success:true,
+      message:"Password changed Successfully",
+      data: admin
+    })
+    } catch (error) {
+      next(error)
+    }
+  }
 };

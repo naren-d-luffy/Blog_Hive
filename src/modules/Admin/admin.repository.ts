@@ -10,6 +10,10 @@ export const adminRepository = {
     return Admin.findById(id);
   },
 
+  getPasswordById(id:string){
+    return Admin.findOne({id,isdeleted:false}).select("+password")
+  },
+
   findByEmail(email: string) {
     return Admin.findOne({ email, isDeleted: false }).select("+password");
   },

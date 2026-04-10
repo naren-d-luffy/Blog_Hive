@@ -206,6 +206,9 @@ export const adminService = {
       password: hashed,
       refreshToken: null,
       csrfToken: null,
+      lockUntil: null,
+      failedLoginAttempt: 0,
+      lastLogin: new Date(),
     });
     const sanitized = this.sanitizeAdmin(updatedAdmin);
     return sanitized;

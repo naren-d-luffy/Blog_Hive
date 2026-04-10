@@ -45,8 +45,8 @@ export const adminController = {
 
   async getallAdmin(req: Request, res: Response, next: NextFunction) {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const page = Math.max(1, parseInt(str(req.query.page) || "1", 10) || 1);
+      const limit = Math.min(100, parseInt(str(req.query.limit) || "10", 10) || 10);
 
       const result = await adminService.findAllAdmin(page, limit);
       console.log(result);

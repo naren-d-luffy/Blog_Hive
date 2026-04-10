@@ -1,25 +1,25 @@
 import env from "../config/env.config";
 import { Request, Response, NextFunction } from "express";
-import { createTokenBucket } from "../service/rateLimiter.service";
+import { createRateLimiter } from "../service/rateLimiter.service";
 
 const GLOBAL_BUCKET_CAPACITY = env.GLOBAL_BUCKET_CAPACITY;
 const GLOBAL_BUCKET_REFILL = env.GLOBAL_BUCKET_REFILLRATE;
 
-const globalBucket = createTokenBucket(GLOBAL_BUCKET_CAPACITY,GLOBAL_BUCKET_REFILL);
+const globalLimiter = createRateLimiter(GLOBAL_BUCKET_CAPACITY,GLOBAL_BUCKET_REFILL);
 
-export const rateLimiter = async ( req: Request, res: Response, next: NextFunction,) => {
-  try {
-    const key = `rate:${req.ip}`;
-    const allowed = await globalBucket.consume(key);
+export const rateLimiter = async (req:Request, res:Response, next:NextFunction) => {
+  const key = `rate:global:${req.ip}`;
 
-    if (!allowed) {
-      res.status(403).json({
-        success: false,
-        message: "Too many request, try again later.",
-      });
-    }
-    next();
-  } catch (error) {
-    next(error);
+  const { allowed, tokens } = await globalLimiter.consume(key);
+
+  res.setHeader("X-RateLimit-Remaining", tokens);
+
+  if (!allowed) {
+    return res.status(429).json({
+      success: false,
+      message: "Too many requests",
+    });
   }
+
+  next();
 };

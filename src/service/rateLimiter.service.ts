@@ -1,31 +1,51 @@
-import redis from '../config/redis.config'
+import redis from "../config/redis.config";
 
-export const createTokenBucket = (capacity: number, refillRate: number) => {
-        const consume = async(key:string) =>{
-        const now = Date.now();
+const luaScript = `
+local key = KEYS[1]
 
-        const bucketData = await redis.get(key);
+local capacity = tonumber(ARGV[1])
+local refillRate = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
 
-        let tokens = capacity;
-        let lastRefill = now;
+local tokens = tonumber(redis.call("HGET", key, "tokens")) or capacity
+local lastRefill = tonumber(redis.call("HGET", key, "lastRefill")) or now
 
-        if (bucketData) {
-            const parsed = JSON.parse(bucketData);
-            tokens = parsed.tokens;
-            lastRefill = parsed.lastRefill;
-        }
+local elapsed = (now - lastRefill) / 1000
+local refill = elapsed * refillRate
 
-        const elapsed = (now - lastRefill) / 1000;
-        const refill = elapsed * refillRate;
+tokens = math.min(capacity, tokens + refill)
 
-        tokens = Math.min(capacity, tokens + refill);
+if tokens < 1 then
+    return {0, tokens}
+end
 
-        if(tokens < 1) return false;
+tokens = tokens - 1
 
-        tokens -= 1;
+redis.call("HSET", key,
+    "tokens", tokens,
+    "lastRefill", now
+)
 
-        await redis.set(key, JSON.stringify({tokens, lastRefill:now}),{EX:60*60});
-        return true;
+redis.call("EXPIRE", key, 3600)
+
+return {1, tokens}
+`;
+
+export const createRateLimiter = (capacity: number, refillRate: number) => {
+  const consume = async (key: string) => {
+    const now = Date.now();
+
+    const sha = await redis.scriptLoad(luaScript);
+
+    const [allowed, tokens] = (await redis.eval(sha, {
+      keys: [key],
+      arguments: [capacity.toString(), refillRate.toString(), now.toString()],
+    })) as [number, number];
+
+    return {
+      allowed: allowed === 1,
+      tokens,
     };
-    return {consume};
-}
+  };
+  return { consume };
+};

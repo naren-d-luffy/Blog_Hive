@@ -39,6 +39,7 @@ export const userController = {
         success: true,
         message: "users fetched successfully",
         data: result,
+        total: result.total,
       });
     } catch (error) {
       next(error);
@@ -76,7 +77,7 @@ export const userController = {
           .status(400)
           .json({ success: false, message: result.error.message });
       }
-      const { accessToken, refreshToken, safeData } =
+      const { accessToken, refreshToken, safeData, csrfToken } =
         await userService.loginUser(result.data);
 
       res.cookie("refreshToken", refreshToken, {
@@ -84,6 +85,12 @@ export const userController = {
         secure: env.NODE_ENV === "production",
         sameSite: "strict",
         maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.cookie("csrfToken", csrfToken, {
+        httpOnly: false,
+        secure: env.NODE_ENV === "production",
+        sameSite: "strict",
       });
 
       return res.status(202).json({
@@ -155,11 +162,16 @@ export const userController = {
 
   async refreshToken(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = req.cookies?.refreshToken;
-      if (!token) return res.status(401).json({ message: "Token is required" });
+      const userDoc = req.authEntity;
+      if (!userDoc || userDoc.role !== "user") {
+        throw new AppError("Forbidden", 403);
+      }
 
-      const { accessToken, refreshToken, safeData } =
-        await userService.postRefresh(token);
+      const { accessToken, refreshToken, csrfToken } =
+        await userService.postRefresh({
+          id: userDoc._id.toString(),
+          role: userDoc.role,
+        });
 
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
@@ -168,14 +180,17 @@ export const userController = {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Tokens Refreshed Successfully",
-          accessToken: accessToken,
-          user: safeData,
-        });
+      res.cookie("csrfToken", csrfToken, {
+        httpOnly: false,
+        secure: env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Tokens Refreshed Successfully",
+        accessToken: accessToken,
+      });
     } catch (error) {
       next(error);
     }

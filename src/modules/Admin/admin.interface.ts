@@ -7,6 +7,7 @@ export interface IAdmin extends Document {
   role: "admin";
   status: "active" | "inactive";
 
+  csrfToken: string | null;
   refreshToken: string | null;
   isDeleted: boolean;
   deletedDate: Date;

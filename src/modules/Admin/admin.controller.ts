@@ -54,6 +54,7 @@ export const adminController = {
         success: true,
         message: "Admins fetched successfully",
         data: result,
+        total: result.total,
       });
     } catch (error) {
       next(error);
@@ -91,7 +92,7 @@ export const adminController = {
           .status(400)
           .json({ success: false, message: result.error.message });
       }
-      const { accessToken, refreshToken, safeData } =
+      const { accessToken, refreshToken, safeData, csrfToken } =
         await adminService.loginAdmin(result.data);
 
       res.cookie("refreshToken", refreshToken, {
@@ -99,6 +100,12 @@ export const adminController = {
         secure: env.NODE_ENV === "production",
         sameSite: "strict",
         maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      res.cookie("csrfToken", csrfToken, {
+        httpOnly: false,
+        secure: env.NODE_ENV === "production",
+        sameSite: "strict",
       });
 
       return res.status(202).json({
@@ -123,7 +130,13 @@ export const adminController = {
 
       res.clearCookie("refreshToken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
+
+      res.clearCookie("csrfToken", {
+        httpOnly: false,
+        secure: env.NODE_ENV === "production",
         sameSite: "strict",
       });
 
@@ -170,11 +183,17 @@ export const adminController = {
 
   async refreshToken(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = req.cookies?.refreshToken;
-      if (!token) res.status(401).json({ message: "Token is required" });
+      const adminDoc = req.authEntity;
 
-      const { accessToken, refreshToken, safeData } =
-        await adminService.postRefresh(token);
+      if (!adminDoc || adminDoc.role !== "admin") {
+        throw new AppError("Forbidden", 403);
+      }
+
+      const { accessToken, refreshToken, csrfToken } =
+        await adminService.postRefresh({
+          id: adminDoc._id.toString(),
+          role: adminDoc.role,
+        });
 
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
@@ -183,11 +202,16 @@ export const adminController = {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
+      res.cookie("csrfToken", csrfToken, {
+        httpOnly: false,
+        secure: env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
+
       res.status(200).json({
         success: true,
         message: "Tokens Refreshed Successfully",
         accessToken: accessToken,
-        admin: safeData,
       });
     } catch (error) {
       next(error);

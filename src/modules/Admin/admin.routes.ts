@@ -2,7 +2,7 @@ import express from "express";
 import { adminController } from "./admin.controller";
 import {Authenticate,Authorize} from "../../middleware/auth.middleware";
 import { loginRateLimiter } from "../../middleware/login.rateLimiter";
-import { validateCsrf } from "../../middleware/validateCSRF";
+import { validateCsrf } from "../../middleware/validateCsrf";
 
 const router = express.Router();
 
@@ -15,6 +15,7 @@ router.use(Authenticate,Authorize("admin"));
 router.get('/', adminController.getallAdmin);
 router.get('/id', adminController.getAdminById);
 router.post('/logout',validateCsrf, adminController.logout);
+router.post('/change-password', adminController.changePassword);
 router.patch('/status/:id', adminController.updateStatus);
 router.delete('/delete/:id', adminController.softDelete);
 

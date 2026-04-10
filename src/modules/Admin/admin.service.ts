@@ -6,7 +6,7 @@ import AppError from "../../utils/AppError";
 import { IAdmin } from "./admin.interface";
 import { AdminLoginInput, CreateAdminInput } from "./admin.validator";
 import { AuthUser } from "../../types/auth.types";
-import checkId from "../../utils/CheckId"
+import checkId from "../../utils/CheckId";
 import redisClient from "../../config/redis.config";
 import generateToken from "../../utils/generateToken";
 import { cs } from "zod/locales";
@@ -45,10 +45,10 @@ export const adminService = {
     const cacheKey = `admins:${page}:${limit}`;
 
     const cached = await redisClient.get(cacheKey);
-    if(cached){
+    if (cached) {
       return JSON.parse(cached);
     }
-    
+
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
@@ -65,16 +65,16 @@ export const adminService = {
       totalPage: Math.ceil(total / limit),
     };
 
-    await redisClient.set(cacheKey,JSON.stringify(result),{"EX": 60});
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
     return result;
   },
 
   async findAdminById(id: string) {
     checkId(id);
 
-    const cacheKey = `admin:${id}`
+    const cacheKey = `admin:${id}`;
     const cached = await redisClient.get(cacheKey);
-    if(cached){
+    if (cached) {
       console.log("Cache hit");
       return JSON.parse(cached);
     }
@@ -82,7 +82,9 @@ export const adminService = {
     const result = await adminRepository.findById(id);
     const sanitizedResult = this.sanitizeAdmin(result);
 
-    await redisClient.set(cacheKey,JSON.stringify(sanitizedResult),{"EX":60});
+    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), {
+      EX: 60,
+    });
     return sanitizedResult;
   },
 
@@ -117,7 +119,7 @@ export const adminService = {
     admin.lastLogin = new Date();
 
     //CSFR Handling
-    const csrfToken = generateToken({length:32});
+    const csrfToken = generateToken({ length: 32 });
     const hashedCsrf = await bcrypt.hash(csrfToken, 10);
     admin.csrfToken = hashedCsrf;
 
@@ -165,21 +167,47 @@ export const adminService = {
 
   async postRefresh(admin: { id: string; role: "admin" }) {
     //CSRF Handler
-    const csrfToken = generateToken({length:32});
-    const hashedCsrf = await bcrypt.hash(csrfToken,10);
+    const csrfToken = generateToken({ length: 32 });
+    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
 
     //Access and Refresh Handler
-    let payload: AuthUser = { id: admin.id, role: admin.role};
+    let payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
     const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
     const hashedRefresh = await bcrypt.hash(refreshToken, 10);
-    
+
     await adminRepository.update(admin.id, {
       refreshToken: hashedRefresh,
       csrfToken: hashedCsrf,
     });
 
     return { accessToken, refreshToken, csrfToken };
+  },
+
+  async changePassword(id: string,currentPassword: string,newPassword: string) {
+    const admin = await adminRepository.getPasswordById(id);
+    if (!admin) throw new AppError("Admin not found", 400);
+
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+
+    if (!isMatch) {
+      throw new AppError("Invalid current password", 400);
+    }
+
+    const isSameAsOld = await bcrypt.compare(newPassword, admin.password);
+
+    if (isSameAsOld) {
+      throw new AppError("New password cannot be same as old password", 400);
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const updatedAdmin = await adminRepository.update(id, {
+      password: hashed,
+      refreshToken: null,
+      csrfToken: null,
+    });
+    const sanitized = this.sanitizeAdmin(updatedAdmin);
+    return sanitized;
   },
 };

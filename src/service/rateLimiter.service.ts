@@ -37,7 +37,7 @@ export const createRateLimiter = (capacity: number, refillRate: number) => {
 
     const sha = await redis.scriptLoad(luaScript);
 
-    const [allowed, tokens] = (await redis.eval(sha, {
+    const [allowed, tokens] = (await redis.evalSha(sha, {
       keys: [key],
       arguments: [capacity.toString(), refillRate.toString(), now.toString()],
     })) as [number, number];

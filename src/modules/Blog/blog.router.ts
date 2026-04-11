@@ -14,10 +14,10 @@ router.get("/slug/:slug", blogController.getBySlug);
 router.get("/:id", blogController.getById);
 
 router.post("/:id/view", blogController.trackView);
-router.post("/:id/report", blogController.reportBlog);
 
-// ── Protected routes (requires authentication) ────────────────────────────────
+// ── Protected routes (requires authentication) 
 router.use(Authenticate, Authorize("admin","user"))
+router.post("/:id/report", blogController.reportBlog);
 router.post("/",blogController.createBlog,);
 router.patch("/:id",blogController.updateBlog,);
 router.delete("/:id",blogController.deleteBlog,);

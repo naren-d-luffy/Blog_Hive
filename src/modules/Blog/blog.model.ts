@@ -4,7 +4,7 @@ import { IBlog } from "./blog.interface";
 const blogSchema = new Schema<IBlog>(
   {
     heading: {type: String,required: true, trim: true,},
-    content: {type: String,required: true,select: false },
+    content: {type: String,required: true },
     createdBy: {type: Schema.Types.ObjectId,ref: "User",required: true},
     updatedBy: {type: Schema.Types.ObjectId,ref: "User",},
 

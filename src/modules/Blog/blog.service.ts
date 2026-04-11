@@ -330,12 +330,25 @@ export const blogService = {
 
   // ── Interactions ──────────────────────────────────
 
-  async trackView(blogId: string) {
+  async trackView(blogId: string, ip:string, userId?:string) {
     checkId(blogId);
+    
     const blog = await blogRepository.findById(blogId);
     if (!blog) throw new AppError("Blog not found", 404);
-    await blogRepository.incrementView(blogId);
-    await blogQueue.add(BLOG_JOBS.UPDATE_POPULARITY, { blogId }, QUEUE_OPTS);
+
+    let viewer = userId || ip;
+
+    const key = `view${blogId}:${viewer}`;
+
+    const exist = await redisClient.get(key);
+
+    if(!exist){
+      await blogRepository.incrementView(blogId);
+      await blogQueue.add(BLOG_JOBS.UPDATE_POPULARITY, { blogId }, QUEUE_OPTS);
+      
+      await redisClient.set(key, "1",{"EX":600});
+    }
+    return {counted: !exist};
   },
 
   async likeBlog(blogId: string, userId: string) {

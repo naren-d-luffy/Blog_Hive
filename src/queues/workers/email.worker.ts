@@ -44,6 +44,33 @@ import connectDB from "../../config/db.config";
             break;
           }
 
+          case EMAIL_JOBS.SEND_WELCOME: {
+            const {email, name, loginLink} = job.data;
+
+            const template = emailTemplates.welcome(name, loginLink);
+
+            await emailService.sendEmail(
+              email,
+              template.subject,
+              template.html,
+            );
+            break;
+          }
+
+          case EMAIL_JOBS.SEND_PASSWORD_RESET: {
+            const {email, resetLink} = job.data;
+
+            const template = emailTemplates.forgotPassword(resetLink);
+
+            await emailService.sendEmail(
+              email,
+              template.subject,
+              template.html,
+            );
+
+            break;
+          }
+
           default:
             console.warn(`Unknown job: ${job.name}`);
         }

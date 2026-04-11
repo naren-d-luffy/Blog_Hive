@@ -10,12 +10,16 @@ export const adminRepository = {
     return Admin.findById(id);
   },
 
-  getPasswordById(id:string){
-    return Admin.findOne({id,isdeleted:false}).select("+password")
+  getPasswordById(id: string) {
+    return Admin.findOne({ id, isdeleted: false }).select("+password");
+  },
+
+  findByEmailWithPassword(email: string) {
+    return Admin.findOne({ email, isDeleted: false }).select("+password");
   },
 
   findByEmail(email: string) {
-    return Admin.findOne({ email, isDeleted: false }).select("+password");
+    return Admin.findOne({ email, isDeleted: false });
   },
 
   findAll(skip: number, limit: number) {
@@ -30,7 +34,7 @@ export const adminRepository = {
   },
 
   update(id: string, data: Partial<IAdmin>) {
-    return Admin.findByIdAndUpdate({ _id:id, isDeleted: false }, data, {
+    return Admin.findByIdAndUpdate({ _id: id, isDeleted: false }, data, {
       returnDocument: "after",
       runValidators: true,
     });

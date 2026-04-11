@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────
-//  Production-Grade Email Templates
-//  Theme: Dark Obsidian × Deep Violet — luxury SaaS aesthetic
-// ─────────────────────────────────────────────────────────────
-
 const baseStyles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@600;700&display=swap');
 
@@ -420,6 +415,50 @@ export const emailTemplates = {
         </div>
 
         <a href="${loginLink}" class="cta-btn">Go to your Dashboard →</a>
+      </div>
+    `),
+  }),
+
+  // ── 4. Forgot Password ─────────────────────────────────────
+  forgotPassword: (resetLink: string) => ({
+    subject: "Reset your password",
+    html: shell(`
+      <div class="header">
+        ${logo}
+        <div class="badge">Password Reset</div>
+        <h1>Forgot your<br/><span>password?</span></h1>
+        <p class="subtext">
+          No worries — it happens. Click the button below to choose
+          a new password. This link is only valid for a short window.
+        </p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="body">
+        <div class="info-row">
+          <div class="info-icon">⏱️</div>
+          <div>
+            <div class="info-label">Link Expires</div>
+            <div class="info-value">In 15 minutes from when this email was sent</div>
+          </div>
+        </div>
+
+        <div class="info-row">
+          <div class="info-icon">🔑</div>
+          <div>
+            <div class="info-label">Single Use</div>
+            <div class="info-value">This link becomes invalid once you've set a new password.</div>
+          </div>
+        </div>
+
+        <a href="${resetLink}" class="cta-btn">Reset My Password →</a>
+
+        <div class="warning-box">
+          <strong>Didn't request this?</strong> You can safely ignore this email —
+          your password will not change unless you click the link above.
+          If this keeps happening, <a href="#" style="color:#d08060;">contact support</a>.
+        </div>
       </div>
     `),
   }),

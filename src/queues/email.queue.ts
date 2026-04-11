@@ -2,4 +2,5 @@ export const EMAIL_JOBS = {
   SEND_ADMIN_INVITE: "send-admin-invite",
   SEND_OTP: "send-otp",
   SEND_WELCOME: "send-welcome",
+  SEND_PASSWORD_RESET: "send-reset-password-link"
 } as const;

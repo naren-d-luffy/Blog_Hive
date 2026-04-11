@@ -123,7 +123,7 @@ export const blogService = {
     }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
-      blogRepository.findAllByPolularity(skip, limit),
+      blogRepository.findAllByPopularity(skip, limit),
       blogRepository.totalCount(),
     ]);
     const result = this.buildPaginatedResponse(
@@ -334,7 +334,7 @@ export const blogService = {
     checkId(blogId);
     const blog = await blogRepository.findById(blogId);
     if (!blog) throw new AppError("Blog not found", 404);
-    await blogRepository.incrementView(blogId).lean();
+    await blogRepository.incrementView(blogId);
     await blogQueue.add(BLOG_JOBS.UPDATE_POPULARITY, { blogId }, QUEUE_OPTS);
   },
 

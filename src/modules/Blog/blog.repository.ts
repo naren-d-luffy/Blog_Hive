@@ -46,7 +46,7 @@ export const blogRepository = {
       .lean();
   },
 
-  findAllByPolularity(skip: number, limit: number) {
+  findAllByPopularity(skip: number, limit: number) {
     return Blog.find({ isDeleted: false, status: "published" })
       .sort({ popularityScore: -1, createdAt: -1 })
       .skip(skip)
@@ -144,7 +144,7 @@ export const blogRepository = {
   removeComment(blogId: string, commentId: string) {
     return Blog.updateOne(
       { _id: blogId, isDeleted: false },
-      { $pull: { comments: commentId } },
+      { $pull: { comments: commentId }, $inc: { commentCount: -1 } },
     );
   },
 

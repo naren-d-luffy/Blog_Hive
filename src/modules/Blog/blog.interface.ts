@@ -18,7 +18,7 @@ export interface IBlog extends Document {
     commentCount: number,
     popularityScore: number,
     
-    isDeleted: Boolean,
+    isDeleted: boolean,
     deletedBy: Types.ObjectId,
     deletedByModel: string,
     deletedAt: Date,

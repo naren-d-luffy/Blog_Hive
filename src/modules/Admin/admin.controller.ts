@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import { adminService } from "./admin.service";
-import { adminLoginSchema, changePasswordSchema, createAdminSchema } from "./admin.validator";
+import {adminLoginSchema,changePasswordSchema,createAdminSchema,resetPasswordSchema,} from "./admin.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
-import { adminInviteService } from "../AdminInvite/adminInvite.service";
+import { tokenService } from "../Token/token.service";
+import {forgotPasswordSchema,} from "../Token/token.validator";
 
 interface params {
   id: string;
@@ -17,7 +18,7 @@ export const adminController = {
       if (!token) {
         return next(new AppError("Invite token is required", 400));
       }
-      const isValid = await adminInviteService.getAdminInviteByToken(token);
+      const isValid = await tokenService.verifyAdminInvite(token);
       if (!isValid) {
         return next(new AppError("Invalid or expired invite token", 400));
       }
@@ -30,8 +31,8 @@ export const adminController = {
       }
       const admin = await adminService.createAdmin(result.data);
 
-      await adminInviteService.markInviteAsUsed(token);
-      await adminInviteService.invalidateAllByEmail(result.data.email);
+      await tokenService.markInviteAsUsed(token);
+      await tokenService.invalidateAllByEmail(result.data.email);
 
       res.status(201).json({
         success: true,
@@ -46,11 +47,14 @@ export const adminController = {
   async getallAdmin(req: Request, res: Response, next: NextFunction) {
     try {
       const page = Math.max(1, parseInt(str(req.query.page) || "1", 10) || 1);
-      const limit = Math.min(100, parseInt(str(req.query.limit) || "10", 10) || 10);
+      const limit = Math.min(
+        100,
+        parseInt(str(req.query.limit) || "10", 10) || 10,
+      );
 
       const result = await adminService.findAllAdmin(page, limit);
       console.log(result);
-      
+
       res.status(200).json({
         success: true,
         message: "Admins fetched successfully",
@@ -219,18 +223,52 @@ export const adminController = {
     }
   },
 
-  async changePassword(req:Request, res:Response, next:NextFunction) {
+  async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
-    const id = str(req.user?.id);
-    const result = changePasswordSchema.parse(req.body);
-    const admin = await adminService.changePassword(id, result.currentPassword, result.newPassword);
-    res.status(200).json({
-      success:true,
-      message:"Password changed Successfully",
-      data: admin
-    })
+      const id = str(req.user?.id);
+      const result = changePasswordSchema.parse(req.body);
+      const admin = await adminService.changePassword(
+        id,
+        result.currentPassword,
+        result.newPassword,
+      );
+      res.status(200).json({
+        success: true,
+        message: "Password changed Successfully",
+        data: admin,
+      });
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
+  },
+
+  async forgotPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const parsed = forgotPasswordSchema.parse(req.body);
+
+      await tokenService.forgotPassword(parsed.email);
+
+      res.status(200).json({
+        success: true,
+        message: "If the email exists, a reset link has been sent",
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async resetPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const parsed = resetPasswordSchema.parse(req.body);
+
+      await tokenService.resetPassword(parsed.token, parsed.newPassword);
+
+      res.status(200).json({
+        success: true,
+        message: "Password reset successful",
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 };

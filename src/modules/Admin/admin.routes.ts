@@ -9,6 +9,8 @@ const router = express.Router();
 router.post('/', adminController.createAdmin);
 router.post('/login',loginRateLimiter, adminController.login);
 router.post('/refresh',validateCsrf, adminController.refreshToken);
+router.post('/forgot-password',adminController.forgotPassword);
+router.patch('/reset-password', adminController.resetPassword);
 
 router.use(Authenticate,Authorize("admin"));
 

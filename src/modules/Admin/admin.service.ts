@@ -9,7 +9,6 @@ import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
 import redisClient from "../../config/redis.config";
 import generateToken from "../../utils/generateToken";
-import { cs } from "zod/locales";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -91,7 +90,7 @@ export const adminService = {
   async loginAdmin(credentials: AdminLoginInput) {
     const { email, password } = credentials;
 
-    const admin = await adminRepository.findByEmail(email);
+    const admin = await adminRepository.findByEmailWithPassword(email);
 
     if (!admin) throw new AppError("Invalid credentials", 401);
 

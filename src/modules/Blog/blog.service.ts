@@ -263,7 +263,7 @@ export const blogService = {
     blogId: string,
     updateData: UpdateBlogInput,
     requesterId: string,
-    requesterRole: "User" | "Admin",
+    requesterRole: "user" | "admin",
   ) {
     checkId(blogId);
     checkId(requesterId);
@@ -272,7 +272,7 @@ export const blogService = {
     if (!existing) throw new AppError("Blog not found", 404);
 
     const isOwner = existing.createdBy.toString() === requesterId;
-    if (!isOwner && requesterRole !== "Admin")
+    if (!isOwner && requesterRole !== "admin")
       throw new AppError("Forbidden: you do not own this blog", 403);
 
     // generateUniqueSlug(heading, excludedId?) — pass blogId as second arg so the

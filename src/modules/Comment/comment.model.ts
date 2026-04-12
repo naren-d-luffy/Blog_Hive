@@ -9,7 +9,7 @@ const commentSchema = new Schema<IComment> (
         createdBy: {type: Schema.Types.ObjectId,ref: "User",required: true},
         updatedBy: {type: Schema.Types.ObjectId,ref: "User",},
         
-        parentCommentId: {type: Schema.Types.ObjectId, ref:"Comment", required:true},
+        parentCommentId: {type: Schema.Types.ObjectId, ref:"Comment", default: null},
 
         likeCount: { type: Number, default: 0, },
         replyCount: { type: Number, default: 0, },
@@ -21,8 +21,9 @@ const commentSchema = new Schema<IComment> (
     },{timestamps:true}
 )
 
+commentSchema.index({ isDeleted: 1 });
 commentSchema.index({ blogId: 1, createdAt: -1 });
-commentSchema.index({ parentCommentId: 1 });
+commentSchema.index({ parentCommentId: 1, createdAt: 1 });
 commentSchema.index({ createdBy: 1 });
 
 const Comment = mongoose.model<IComment>("Comment", commentSchema);

@@ -60,7 +60,7 @@ const commentRepository = {
   },
 
   async incrementReplyCount(commentId: string, value = 1) {
-    return Comment.findByIdAndUpdate(
+    return Comment.findOneAndUpdate(
       { _id: commentId, isDeleted: false },
       { $inc: { replyCount: value } },
       { new: true },
@@ -68,7 +68,7 @@ const commentRepository = {
   },
 
   async incrementLikeCount(commentId: string, value = 1) {
-    return Comment.findByIdAndUpdate(
+    return Comment.findOneAndUpdate(
       { _id: commentId, isDeleted: false },
       { $inc: { likeCount: value } },
       { new: true },
@@ -76,8 +76,8 @@ const commentRepository = {
   },
 
   async incrementReportCount(commentId: string, value = 1) {
-    return Comment.findByIdAndUpdate(
-      commentId,
+    return Comment.findOneAndUpdate(
+      {_id:commentId},
       { $inc: { reportCount: value } },
       { new: true },
     );

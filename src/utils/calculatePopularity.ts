@@ -3,7 +3,7 @@ import { IBlog } from "../modules/Blog/blog.interface";
 export const calculatePopularity = (blog: Partial<IBlog>) => {
     const view = blog.views ?? 0;
     const like = blog.likeCount ?? 0;
-    const comment = blog.comments?.length ?? 0;
+    const comment = blog.commentCount ?? 0;
     const created = blog.createdAt ? new Date(blog.createdAt).getTime() : Date.now();
     const hoursAgo = (Date.now() - created) / 3600000;
 

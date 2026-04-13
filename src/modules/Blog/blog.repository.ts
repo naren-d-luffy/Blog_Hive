@@ -121,7 +121,7 @@ export const blogRepository = {
   },
 
   update(id: string, data: Partial<IBlog>) {
-    return Blog.findByIdAndUpdate({ _id: id, isDeleted: false }, data, {
+    return Blog.findOneAndUpdate({ _id: id, isDeleted: false }, data, {
       returnDocument: "after",
       runValidators: true,
     });
@@ -149,8 +149,8 @@ export const blogRepository = {
   },
 
   softDelete(id: string, userId: string, actorModel: "User" | "Admin") {
-    return Blog.findByIdAndUpdate(
-      id,
+    return Blog.findOneAndUpdate(
+      {_id:id},
       {
         isDeleted: true,
         deletedAt: Date.now(),

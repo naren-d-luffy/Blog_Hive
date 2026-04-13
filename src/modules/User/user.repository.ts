@@ -30,15 +30,15 @@ export const userRepository = {
   },
 
   update(id: string, data: Partial<IUser>) {
-    return User.findByIdAndUpdate({ _id:id, isDeleted: false }, data, {
+    return User.findOneAndUpdate({ _id:id, isDeleted: false }, data, {
       returnDocument: "after",
       runValidators: true,
     });
   },
 
   softDelete(id: string) {
-    return User.findByIdAndUpdate(
-      id,
+    return User.findOneAndUpdate(
+      {_id:id},
       { isDeleted: true, deletedDate: new Date() },
       { returnDocument: "after" },
     );

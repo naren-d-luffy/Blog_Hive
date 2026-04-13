@@ -34,15 +34,15 @@ export const adminRepository = {
   },
 
   update(id: string, data: Partial<IAdmin>) {
-    return Admin.findByIdAndUpdate({ _id: id, isDeleted: false }, data, {
+    return Admin.findOneAndUpdate({ _id: id, isDeleted: false }, data, {
       returnDocument: "after",
       runValidators: true,
     });
   },
 
   softDelete(id: string) {
-    return Admin.findByIdAndUpdate(
-      id,
+    return Admin.findOneAndUpdate(
+      {_id:id},
       { isDeleted: true, deletedDate: new Date() },
       { returnDocument: "after" },
     );

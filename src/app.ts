@@ -27,7 +27,7 @@ app.get("/",(req:Request, res:Response)=>{
 app.get("/health", async (req, res) => {
   const checks = {
     db: mongoose.connection.readyState === 1 ? "ok" : "failing",
-    redis: redisClient.isReady ? "ok" : "failing",
+    redis: redisClient.status === "ready" ? "ok" : "failing",
     uptime: process.uptime(),
     memory: process.memoryUsage(),
   };

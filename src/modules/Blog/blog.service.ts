@@ -409,7 +409,7 @@ export const blogService = {
   async recalculatePopularity(blogId: string) {
     checkId(blogId);
     const blog = await blogRepository.findById(blogId);
-    if (!blog) return; // Already deleted — silently skip
+    if (!blog) return;
     const score = calculatePopularity(blog);
     await blogRepository.updatePopularityScore(blogId, score);
   },

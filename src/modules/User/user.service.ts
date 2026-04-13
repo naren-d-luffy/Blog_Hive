@@ -63,7 +63,7 @@ export const userService = {
       totalPage: Math.ceil(total / limit),
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
   },
 
   async findUserById(id: string) {
@@ -77,9 +77,7 @@ export const userService = {
     const result = await userRepository.findById(id);
     const sanitizedResult = this.sanitizeUser(result);
 
-    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), {
-      EX: 60,
-    });
+    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult),"EX",60 );
 
     return sanitizedResult;
   },

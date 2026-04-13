@@ -1,14 +1,10 @@
-export {};
-
-  import { IAdmin } from "../../modules/Admin/admin.interface";
-  import { IUser } from "../../modules/User/user.interface";
 import { AuthUser } from "../auth.types";
+import { IAdmin } from "../../modules/Admin/admin.interface";
+import { IUser } from "../../modules/User/user.interface";
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthUser;
-      authEntity?: IUser | IAdmin;
-    }
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: AuthUser;
+    authEntity?: IUser | IAdmin;
   }
 }

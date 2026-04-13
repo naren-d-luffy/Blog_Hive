@@ -31,21 +31,30 @@ redis.call("EXPIRE", key, 3600)
 return {1, tokens}
 `;
 
+let cachedSha: string | null = null;
+
 export const createRateLimiter = (capacity: number, refillRate: number) => {
   const consume = async (key: string) => {
     const now = Date.now();
 
-    const sha = await redis.scriptLoad(luaScript);
+    if (!cachedSha) {
+      cachedSha = await redis.script("LOAD", luaScript) as string;
+    }
 
-    const [allowed, tokens] = (await redis.evalSha(sha, {
-      keys: [key],
-      arguments: [capacity.toString(), refillRate.toString(), now.toString()],
-    })) as [number, number];
+    const result = await redis.evalsha(
+      cachedSha,
+      1,
+      key,
+      capacity.toString(),
+      refillRate.toString(),
+      now.toString()
+    ) as [number, number];
 
     return {
-      allowed: allowed === 1,
-      tokens,
+      allowed: result[0] === 1,
+      tokens: result[1],
     };
   };
+
   return { consume };
 };

@@ -119,7 +119,7 @@ export const commentService = {
       limit,
     );
 
-    await redisClient.set(key, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(key, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -143,7 +143,7 @@ export const commentService = {
       limit,
     );
 
-    await redisClient.set(key, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(key, JSON.stringify(result), "EX",60);
     return result;
   },
 

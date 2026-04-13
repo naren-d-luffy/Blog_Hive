@@ -64,7 +64,7 @@ export const adminService = {
       totalPage: Math.ceil(total / limit),
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -81,9 +81,7 @@ export const adminService = {
     const result = await adminRepository.findById(id);
     const sanitizedResult = this.sanitizeAdmin(result);
 
-    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), {
-      EX: 60,
-    });
+    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), "EX", 60);
     return sanitizedResult;
   },
 

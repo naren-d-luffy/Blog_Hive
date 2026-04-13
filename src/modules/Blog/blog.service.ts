@@ -10,10 +10,7 @@ import { BLOG_JOBS } from "../../queues/blog.queue";
 import mongoose from "mongoose";
 import redisClient from "../../config/redis.config";
 
-// ─────────────────────────────────────────────────
 // Types
-// ─────────────────────────────────────────────────
-
 export interface PaginatedResult<T> {
   data: T[];
   total: number;
@@ -29,13 +26,9 @@ const QUEUE_OPTS = {
   backoff: { type: "exponential" as const, delay: 2000 },
 };
 
-// ─────────────────────────────────────────────────
 // Service
-// ─────────────────────────────────────────────────
-
 export const blogService = {
-  // ── Sanitize ──────────────────────────────────────
-
+  // Sanitize
   sanitizeBlog(blog: Partial<IBlog> | null) {
     if (!blog) return null;
     return {
@@ -56,8 +49,7 @@ export const blogService = {
     };
   },
 
-  // ── Pagination envelope ───────────────────────────
-
+  // Pagination envelope
   buildPaginatedResponse<T>(
     data: T[],
     total: number,
@@ -76,11 +68,8 @@ export const blogService = {
     };
   },
 
-  // ── Create ────────────────────────────────────────
-
+  // Create
   async createBlog(blogData: CreateBlogInput, id: string) {
-    // generateUniqueSlug(heading, excludedId?)
-    // No excludedId on creation — pass heading only
     const slug = await generateUniqueSlug(blogData.heading);
 
     const newBlog = await blogRepository.create({
@@ -89,11 +78,15 @@ export const blogService = {
       createdBy: new mongoose.Types.ObjectId(id),
     });
 
+    await Promise.all([
+      redisClient.del("allBlog:*"),
+      redisClient.del("allPopularBlog:*"),
+    ]);
+
     return this.sanitizeBlog(newBlog);
   },
 
-  // ── Read (lists) ──────────────────────────────────
-
+  // Read (lists)
   async getAllBlogs(page: number, limit: number) {
     const cacheKey = `allBlog:${page}:${limit}`;
     const cached = await redisClient.get(cacheKey);
@@ -112,7 +105,7 @@ export const blogService = {
       limit,
     );
     await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
-    return result
+    return result;
   },
 
   async getAllByPopularity(page: number, limit: number) {
@@ -133,7 +126,7 @@ export const blogService = {
       limit,
     );
     await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
-    return result
+    return result;
   },
 
   async getAllByCategory(category: string, page: number, limit: number) {
@@ -154,7 +147,7 @@ export const blogService = {
       limit,
     );
     await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
-    return result
+    return result;
   },
 
   async getAllByTag(tag: string, page: number, limit: number) {
@@ -175,7 +168,7 @@ export const blogService = {
       limit,
     );
     await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
-    return result
+    return result;
   },
 
   async getAllByAuthor(userId: string, page: number, limit: number) {
@@ -221,23 +214,22 @@ export const blogService = {
       page,
       limit,
     );
-    await redisClient.set(cacheKey,JSON.stringify(result),{"EX":30})
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 30 });
     return result;
   },
 
-  // ── Read (single) ─────────────────────────────────
-
+  // Read (single)
   async getById(blogId: string) {
     checkId(blogId);
     const cacheKey = `blog:${blogId}`;
     const cached = await redisClient.get(cacheKey);
-    if(cached){
+    if (cached) {
       return JSON.parse(cached);
     }
     const blog = await blogRepository.findById(blogId);
     if (!blog) throw new AppError("Blog not found", 404);
     const result = this.sanitizeBlog(blog);
-    await redisClient.set(cacheKey,JSON.stringify(result),{"EX":60});
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
     return result;
   },
 
@@ -247,18 +239,17 @@ export const blogService = {
       throw new AppError("Slug is required", 400);
     const cacheKey = `slug:${slugTrimmed}`;
     const cached = await redisClient.get(cacheKey);
-    if(cached){
+    if (cached) {
       return JSON.parse(cached);
     }
     const blog = await blogRepository.findBySlug(slugTrimmed);
     if (!blog) throw new AppError("Blog not found", 404);
     const result = this.sanitizeBlog(blog);
-    await redisClient.set(cacheKey, JSON.stringify(result),{"EX":60});
+    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
     return result;
   },
 
-  // ── Update ────────────────────────────────────────
-
+  // Update
   async updateBlog(
     blogId: string,
     updateData: UpdateBlogInput,
@@ -275,8 +266,6 @@ export const blogService = {
     if (!isOwner && requesterRole !== "admin")
       throw new AppError("Forbidden: you do not own this blog", 403);
 
-    // generateUniqueSlug(heading, excludedId?) — pass blogId as second arg so the
-    // current slug is excluded from the uniqueness check during updates.
     let slug = existing.slug;
     if (updateData.heading && updateData.heading !== existing.heading) {
       await redisClient.del(`slug:${slug.trim()}`);
@@ -284,15 +273,22 @@ export const blogService = {
         excludedId: blogId,
       });
     }
-    
+
     const updated = await blogRepository.update(blogId, {
       ...updateData,
       slug,
       updatedBy: new mongoose.Types.ObjectId(requesterId),
     });
-    
+
     if (!updated) throw new AppError("Blog update failed", 500);
-    await redisClient.del(`blog:${blogId}`);
+    await Promise.all([
+      redisClient.del("allBlog:*"),
+      redisClient.del("allPopularBlog:*"),
+      redisClient.del(`blog:${blogId}`),
+      redisClient.del("allBlogByCategory:*"),
+      redisClient.del("allBlogByTag:*"),
+      redisClient.del("search:*"),
+    ]);
 
     const newScore = calculatePopularity(updated);
     await blogRepository.updatePopularityScore(blogId, newScore);
@@ -300,8 +296,7 @@ export const blogService = {
     return this.sanitizeBlog(updated);
   },
 
-  // ── Delete ────────────────────────────────────────
-
+  // Delete
   async deleteBlog(
     blogId: string,
     requesterId: string,
@@ -323,16 +318,22 @@ export const blogService = {
       requesterRole,
     );
     if (!deleted) throw new AppError("Blog deletion failed", 500);
-    await redisClient.del(`blog:${blogId}`)
+    await Promise.all([
+      redisClient.del("allBlog:*"),
+      redisClient.del("allPopularBlog:*"),
+      redisClient.del(`blog:${blogId}`),
+      redisClient.del("allBlogByCategory:*"),
+      redisClient.del("allBlogByTag:*"),
+      redisClient.del("search:*"),
+    ]);
 
     return { id: blogId, deleted: true };
   },
 
-  // ── Interactions ──────────────────────────────────
-
-  async trackView(blogId: string, ip:string, userId?:string) {
+  // Interactions
+  async trackView(blogId: string, ip: string, userId?: string) {
     checkId(blogId);
-    
+
     const blog = await blogRepository.findById(blogId);
     if (!blog) throw new AppError("Blog not found", 404);
 
@@ -342,13 +343,13 @@ export const blogService = {
 
     const exist = await redisClient.get(key);
 
-    if(!exist){
+    if (!exist) {
       await blogRepository.incrementView(blogId);
       await blogQueue.add(BLOG_JOBS.UPDATE_POPULARITY, { blogId }, QUEUE_OPTS);
-      
-      await redisClient.set(key, "1",{"EX":600});
+
+      await redisClient.set(key, "1", { EX: 600 });
     }
-    return {counted: !exist};
+    return { counted: !exist };
   },
 
   async likeBlog(blogId: string, userId: string) {
@@ -389,8 +390,7 @@ export const blogService = {
     return { reported: true };
   },
 
-  // ── Comment helpers (called by CommentService) ────
-
+  // Comment helpers
   async attachComment(blogId: string, commentId: string) {
     checkId(blogId);
     checkId(commentId);
@@ -404,8 +404,7 @@ export const blogService = {
     await blogRepository.removeComment(blogId, commentId);
   },
 
-  // ── Popularity (called by queue worker) ──────────
-
+  // Popularity (called by queue worker)
   async recalculatePopularity(blogId: string) {
     checkId(blogId);
     const blog = await blogRepository.findById(blogId);

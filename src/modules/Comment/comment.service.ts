@@ -5,7 +5,6 @@ import commentRepository from "./comment.repository";
 import { blogService } from "../Blog/blog.service";
 import { IComment } from "./comment.interface";
 import redisClient from "../../config/redis.config";
-import { json } from "zod";
 
 // Types
 export interface PaginatedResult<T> {
@@ -90,6 +89,8 @@ export const commentService = {
     } else {
       await commentRepository.incrementReplyCount(parentCommentId, 1);
     }
+
+    await redisClient.del(`comments:${blogId}:*`);
 
     return this.sanitize(newComment);
   },

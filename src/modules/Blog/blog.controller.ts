@@ -215,9 +215,12 @@ export const blogController = {
           });
       }
 
-      const requesterId: string = (req as any).user?.id;
-      const requesterRole: "User" | "Admin" = (req as any).user?.role ?? "User";
+      
+      const requesterId = req.user?.id;
+      const requesterRole = req.user?.role;
+      
       if (!requesterId) throw new AppError("Authentication required", 401);
+      if (!requesterRole) throw new AppError("Role is required", 403);
 
       const updated = await blogService.updateBlog(
         str(req.params.id),

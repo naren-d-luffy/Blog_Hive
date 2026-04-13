@@ -1,26 +1,24 @@
-import { createClient } from "redis";
+import IORedis from "ioredis";
 import env from "./env.config";
 
-const redisClient = createClient({
-  url: env.REDIS_URL,
-  socket: {
-    reconnectStrategy: (retries: number) => {
-      if (retries > 10) {
-        console.log("Redis retry attempts exhausted.");
-        return new Error("Retry attempts exhausted");
-      }
-      return retries * 1000;
-    },
+export const redisClient = new IORedis(env.REDIS_URL, {
+  maxRetriesPerRequest: null,
+  retryStrategy: (times) => {
+    if (times > 10) {
+      console.error("Redis retry attempts exhausted");
+      return null;
+    }
+    return times * 1000;
   },
 });
 
-redisClient.on("error", (err)=>{
-    console.error("Redis error",err);
-})
+redisClient.on("error", (err) => {
+  console.error("Redis error", err);
+});
 
-redisClient.on("connect", ()=>{
-    console.error("Redis connected successfully");
-})
+redisClient.on("connect", () => {
+  console.log("Redis connected successfully");
+});
 
 redisClient.on("reconnecting", ()=>{
     console.error("Redis reconnecting...");

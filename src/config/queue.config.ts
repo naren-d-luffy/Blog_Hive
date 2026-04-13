@@ -1,27 +1,22 @@
 import { Queue, QueueEvents } from "bullmq";
-import IORedis from "ioredis";
-import env from "./env.config";
-
-export const redisIO = new IORedis(env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-});
+import { redisClient } from "./redis.config";
 
 // ---------------- BLOG QUEUE ----------------
 export const blogQueue = new Queue("blog-queue", {
-  connection: redisIO,
+  connection: redisClient,
 });
 
 export const blogQueueEvents = new QueueEvents("blog-queue", {
-  connection: redisIO,
+  connection: redisClient,
 });
 
 // ---------------- EMAIL QUEUE ----------------
 export const emailQueue = new Queue("email-queue", {
-  connection: redisIO,
+  connection: redisClient,
 });
 
 export const emailQueueEvents = new QueueEvents("email-queue", {
-  connection: redisIO,
+  connection: redisClient,
 });
 
 // ---------------- EVENTS ----------------

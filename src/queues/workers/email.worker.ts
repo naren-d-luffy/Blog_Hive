@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import { EMAIL_JOBS } from "../email.queue";
 import { emailService } from "../../modules/Notification/email.service";
 import { emailTemplates } from "../../modules/Notification/email.templates";
-import { redisIO } from "../../config/queue.config";
+import { redisClient } from "../../config/redis.config";
 import connectDB from "../../config/db.config";
 
 (async () => {
@@ -80,7 +80,7 @@ import connectDB from "../../config/db.config";
       }
     },
     {
-      connection: redisIO,
+      connection: redisClient,
       concurrency: 5,
     },
   );

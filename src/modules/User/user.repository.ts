@@ -10,8 +10,12 @@ export const userRepository = {
     return User.findById(id);
   },
 
+  getSessionById(id: string) {
+  return User.findOne({ _id: id, isDeleted: false }).select("+csrfToken +refreshToken");
+  },
+
   getPasswordById(id:string){
-    return User.findOne({id,isdeleted:false}).select("+password")
+    return User.findOne({_id: id,isdeleted:false}).select("+password")
   },
 
   findByEmail(email: string) {

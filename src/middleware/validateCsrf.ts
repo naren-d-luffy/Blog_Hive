@@ -25,21 +25,25 @@ export const validateCsrf = async (
     const payload = jwt.verify(refreshToken, REFRESH_SECRET) as AuthUser;
 
     let entity;
-
     if (payload.role === "admin") {
-      entity = await adminRepository.findById(payload.id);
+      entity = await adminRepository.getSessionById(payload.id);
     } else {
-      entity = await userRepository.findById(payload.id);
+      entity = await userRepository.getSessionById(payload.id);
     }
 
-    if(!entity || !entity.csrfToken){
-        throw new AppError("Invalid Session",403)
+    if (!entity || !entity.csrfToken || !entity.refreshToken) {
+      throw new AppError("Invalid session", 403);
     }
 
-    const isMatch = await bcrypt.compare(csrfHeader, entity.csrfToken);
-    if(!isMatch){
-        throw new AppError("Invalid CSRF token", 403);
-    };
+    const isRefreshValid = await bcrypt.compare(refreshToken, entity.refreshToken);
+    if (!isRefreshValid) {
+      throw new AppError("Invalid session", 403);
+    }
+
+    const isCsrfValid = await bcrypt.compare(csrfHeader, entity.csrfToken);
+    if (!isCsrfValid) {
+      throw new AppError("Invalid CSRF token", 403);
+    }
 
     req.authEntity = entity;
     next();

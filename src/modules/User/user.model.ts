@@ -9,8 +9,8 @@ const userSchema = new Schema<IUser>(
     role: { type: String, default: "user", enum:["user"] },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true,},
 
-    csrfToken: {type:String},
-    refreshToken: { type: String },
+    csrfToken: {type:String, select:false},
+    refreshToken: { type: String, select:false},
     isDeleted: { type: Boolean, default: false },
     deletedDate: { type: Date },
     lastLogin: { type: Date },

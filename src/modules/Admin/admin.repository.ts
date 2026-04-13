@@ -10,8 +10,12 @@ export const adminRepository = {
     return Admin.findById(id);
   },
 
+  getSessionById(id: string) {
+  return Admin.findOne({ _id: id, isDeleted: false }).select("+csrfToken +refreshToken");
+  },
+
   getPasswordById(id: string) {
-    return Admin.findOne({ id, isdeleted: false }).select("+password");
+    return Admin.findOne({ _id:id, isdeleted: false }).select("+password");
   },
 
   findByEmailWithPassword(email: string) {

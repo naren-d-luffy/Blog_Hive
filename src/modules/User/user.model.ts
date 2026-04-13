@@ -6,7 +6,7 @@ const userSchema = new Schema<IUser>(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
-    role: { type: String, default: "user" },
+    role: { type: String, default: "user", enum:["user"] },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true,},
 
     csrfToken: {type:String},

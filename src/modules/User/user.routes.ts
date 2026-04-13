@@ -12,7 +12,7 @@ router.post('/refresh',validateCsrf, userController.refreshToken);
 
 router.use(Authenticate);
 
-router.get('/',Authorize("user","admin"), userController.getalluser);
+router.get('/',Authorize("admin"), userController.getalluser);
 router.get('/id',Authorize("user","admin"), userController.getuserById);
 router.post('/logout',Authorize("user"),validateCsrf, userController.logout);
 router.patch('/status/:id',Authorize("admin"), userController.updateStatus);

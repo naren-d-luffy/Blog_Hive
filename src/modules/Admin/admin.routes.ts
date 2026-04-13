@@ -15,7 +15,7 @@ router.patch('/reset-password', adminController.resetPassword);
 router.use(Authenticate,Authorize("admin"));
 
 router.get('/', adminController.getallAdmin);
-router.get('/id', adminController.getAdminById);
+router.get('/me', adminController.getAdminById);
 router.post('/logout',validateCsrf, adminController.logout);
 router.post('/change-password', adminController.changePassword);
 router.patch('/status/:id', adminController.updateStatus);

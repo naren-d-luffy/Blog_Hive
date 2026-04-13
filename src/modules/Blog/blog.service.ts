@@ -104,7 +104,7 @@ export const blogService = {
       page,
       limit,
     );
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -125,7 +125,7 @@ export const blogService = {
       page,
       limit,
     );
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -146,7 +146,7 @@ export const blogService = {
       page,
       limit,
     );
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -167,7 +167,7 @@ export const blogService = {
       page,
       limit,
     );
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -189,7 +189,7 @@ export const blogService = {
       page,
       limit,
     );
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -214,7 +214,7 @@ export const blogService = {
       page,
       limit,
     );
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 30 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 30 );
     return result;
   },
 
@@ -229,7 +229,7 @@ export const blogService = {
     const blog = await blogRepository.findById(blogId);
     if (!blog) throw new AppError("Blog not found", 404);
     const result = this.sanitizeBlog(blog);
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -245,7 +245,7 @@ export const blogService = {
     const blog = await blogRepository.findBySlug(slugTrimmed);
     if (!blog) throw new AppError("Blog not found", 404);
     const result = this.sanitizeBlog(blog);
-    await redisClient.set(cacheKey, JSON.stringify(result), { EX: 60 });
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
     return result;
   },
 
@@ -347,7 +347,7 @@ export const blogService = {
       await blogRepository.incrementView(blogId);
       await blogQueue.add(BLOG_JOBS.UPDATE_POPULARITY, { blogId }, QUEUE_OPTS);
 
-      await redisClient.set(key, "1", { EX: 600 });
+      await redisClient.set(key, "1", "EX", 600);
     }
     return { counted: !exist };
   },

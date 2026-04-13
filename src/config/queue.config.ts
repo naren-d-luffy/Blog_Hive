@@ -1,5 +1,5 @@
 import { Queue, QueueEvents } from "bullmq";
-import { redisClient } from "./redis.config";
+import redisClient from "./redis.config";
 
 // ---------------- BLOG QUEUE ----------------
 export const blogQueue = new Queue("blog-queue", {

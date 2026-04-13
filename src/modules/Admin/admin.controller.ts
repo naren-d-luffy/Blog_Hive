@@ -5,7 +5,7 @@ import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
 import { tokenService } from "../Token/token.service";
-import {forgotPasswordSchema,} from "../Token/token.validator";
+import { forgotPasswordSchema } from "../Token/token.validator";
 
 interface params {
   id: string;
@@ -66,15 +66,15 @@ export const adminController = {
     }
   },
 
-  async getAdminById(req: Request, res: Response, next: NextFunction) {
+  async getCurrentAdmin(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = req.user?.id;
+      const user = req.user;
 
-      if (!id) {
-        return next(new AppError("Id is required", 400));
+      if (!user || user.role !== "admin") {
+        return next(new AppError("Unauthorized access", 401));
       }
 
-      const fetchedAdmin = await adminService.findAdminById(id);
+      const fetchedAdmin = await adminService.findAdminById(user.id);
 
       if (!fetchedAdmin) {
         return next(new AppError("Admin not Found or Deleted", 404));
@@ -125,13 +125,13 @@ export const adminController = {
 
   async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = req.user?.id;
+      const user = req.user;
 
-      if (!id) {
-        return next(new AppError("Unauthorized", 401));
+      if (!user || user.role !== "admin") {
+        return next(new AppError("Unauthorized access", 401));
       }
 
-      await adminService.logoutAdmin(id);
+      await adminService.logoutAdmin(user.id);
 
       res.clearCookie("refreshToken", {
         httpOnly: true,
@@ -225,10 +225,14 @@ export const adminController = {
 
   async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const id = str(req.user?.id);
+      const user = req.user;
+
+      if (!user || user.role !== "admin") {
+        return next(new AppError("Unauthorized access", 401));
+      }
       const result = changePasswordSchema.parse(req.body);
       const admin = await adminService.changePassword(
-        id,
+        user.id,
         result.currentPassword,
         result.newPassword,
       );

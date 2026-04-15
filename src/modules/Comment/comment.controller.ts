@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { commentService } from "./comment.service";
 import { str } from "../../utils/toString";
+import asyncHandler from "../../utils/asyncHandler";
 
 export const commentController = {
-  // Create Comment / Reply
-  async createComment(req: Request, res: Response, next: NextFunction) {
-    try {
+  createComment: asyncHandler (async (req: Request, res: Response) => {
       const blogId = str(req.params.blogId);
       const userId = str(req.user?.id);
 
@@ -23,14 +22,9 @@ export const commentController = {
         message: "Comment created successfully",
         data: result,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
+  }),
 
-  // Get Root Comments
-  async getComments(req: Request, res: Response, next: NextFunction) {
-    try {
+  getComments: asyncHandler (async (req: Request, res: Response) => {
       const blogId = str(req.params.blogId);
 
       const page = Number(req.query.page) || 1;
@@ -42,14 +36,9 @@ export const commentController = {
         success: true,
         data: result,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
+  }),
 
-  // Get Replies
-  async getReplies(req: Request, res: Response, next: NextFunction) {
-    try {
+  getReplies: asyncHandler (async (req: Request, res: Response) => {
       const commentId = str(req.params.commentId);
 
       const page = Number(req.query.page) || 1;
@@ -61,14 +50,9 @@ export const commentController = {
         success: true,
         data: result,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
+  }),
 
-  // Update Comment
-  async updateComment(req: Request, res: Response, next: NextFunction) {
-    try {
+  updateComment: asyncHandler (async (req: Request, res: Response) => {
       const commentId = str(req.params.commentId);
       const userId = str(req.user?.id);
 
@@ -85,14 +69,9 @@ export const commentController = {
         message: "Comment updated successfully",
         data: result,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
+  }),
 
-  // Delete Comment
-  async deleteComment(req: Request, res: Response, next: NextFunction) {
-    try {
+  deleteComment: asyncHandler (async (req: Request, res: Response) => {
       const commentId = str(req.params.commentId);
       const userId = str(req.user?.id);
 
@@ -103,14 +82,9 @@ export const commentController = {
         message: "Comment deleted successfully",
         data: result,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
+  }),
 
-  // Like Comment
-  async likeComment(req: Request, res: Response, next: NextFunction) {
-    try {
+  likeComment: asyncHandler (async (req: Request, res: Response) => {
       const commentId = str(req.params.commentId);
 
       const result = await commentService.likeComment(commentId);
@@ -120,14 +94,9 @@ export const commentController = {
         message: "Comment liked",
         data: result,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
+  }),
 
-  // Unlike Comment
-  async unlikeComment(req: Request, res: Response, next: NextFunction) {
-    try {
+  unlikeComment: asyncHandler (async (req: Request, res: Response) => {
       const commentId = str(req.params.commentId);
 
       const result = await commentService.unlikeComment(commentId);
@@ -137,14 +106,9 @@ export const commentController = {
         message: "Comment unliked",
         data: result,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
+  }),
 
-  // Report Comment
-  async reportComment(req: Request, res: Response, next: NextFunction) {
-    try {
+  reportComment: asyncHandler (async (req: Request, res: Response) => {
       const commentId = str(req.params.commentId);
 
       const result = await commentService.reportComment(commentId);
@@ -154,8 +118,5 @@ export const commentController = {
         message: "Comment reported",
         data: result,
       });
-    } catch (err) {
-      next(err);
-    }
-  },
+  }),
 };

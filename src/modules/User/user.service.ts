@@ -9,6 +9,9 @@ import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
 import redisClient from "../../config/redis.config";
 import generateToken from "../../utils/generateToken";
+import { tokenService } from "../Token/token.service";
+import { TokenType } from "../Token/token.interface";
+import mongoose from "mongoose";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -35,7 +38,10 @@ export const userService = {
       password: hashed,
       role: "user",
       status: "active",
+      isVerified: false,
     });
+
+    await tokenService.createVerifyUserToken(newUser.email, newUser.id);
 
     return this.sanitizeUser(newUser);
   },
@@ -63,7 +69,7 @@ export const userService = {
       totalPage: Math.ceil(total / limit),
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
   },
 
   async findUserById(id: string) {
@@ -77,7 +83,7 @@ export const userService = {
     const result = await userRepository.findById(id);
     const sanitizedResult = this.sanitizeUser(result);
 
-    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult),"EX",60 );
+    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), "EX", 60);
 
     return sanitizedResult;
   },
@@ -208,5 +214,20 @@ export const userService = {
     });
     const sanitized = this.sanitizeUser(updatedUser);
     return sanitized;
+  },
+
+  async verifyUser(token: string) {
+    const verifiedData = await tokenService.verifyToken(
+      token,
+      TokenType.EMAIL_VERIFICATION,
+    );
+
+    if (!verifiedData || !verifiedData.user) {
+      throw new AppError("Invalid or malformed token", 400);
+    }
+
+    return await userRepository.update(verifiedData.user.toString(), {
+      isVerified: true,
+    });
   },
 };

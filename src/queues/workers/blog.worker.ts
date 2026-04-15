@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import { BLOG_JOBS } from "../blog.queue";
 import { blogRepository } from "../../modules/Blog/blog.repository";
 import { calculatePopularity } from "../../utils/calculatePopularity";
-import { redisClient } from "../../config/redis.config";
+import redisClient from "../../config/redis.config";
 import connectDB from "../../config/db.config";
 
 (async () => {

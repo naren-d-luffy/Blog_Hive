@@ -1,6 +1,11 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, response } from "express";
 import { userService } from "./user.service";
-import { userLoginSchema, createUserSchema, changePasswordSchema } from "./user.validator";
+import {
+  userLoginSchema,
+  createUserSchema,
+  changePasswordSchema,
+  verifyUserSchema,
+} from "./user.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
@@ -31,7 +36,10 @@ export const userController = {
   async getalluser(req: Request, res: Response, next: NextFunction) {
     try {
       const page = Math.max(1, parseInt(str(req.query.page) || "1", 10) || 1);
-      const limit = Math.min(100, parseInt(str(req.query.limit) || "10", 10) || 10);
+      const limit = Math.min(
+        100,
+        parseInt(str(req.query.limit) || "10", 10) || 10,
+      );
 
       const result = await userService.findAllUser(page, limit);
 
@@ -196,18 +204,36 @@ export const userController = {
     }
   },
 
-  async changePassword(req:Request, res:Response, next:NextFunction) {
-      try {
+  async changePassword(req: Request, res: Response, next: NextFunction) {
+    try {
       const id = str(req.user?.id);
       const result = changePasswordSchema.parse(req.body);
-      const user = await userService.changePassword(id, result.currentPassword, result.newPassword);
+      const user = await userService.changePassword(
+        id,
+        result.currentPassword,
+        result.newPassword,
+      );
       res.status(200).json({
-        success:true,
-        message:"Password changed Successfully",
-        data: user
-      })
-      } catch (error) {
-        next(error)
-      }
+        success: true,
+        message: "Password changed Successfully",
+        data: user,
+      });
+    } catch (error) {
+      next(error);
     }
+  },
+
+  async verifyUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const parsed = verifyUserSchema.parse(req.body);
+      if (!parsed.token)
+        res.status(401).json({ success: false, message: "Token is required." });
+      await userService.verifyUser(parsed.token);
+      res
+        .status(201)
+        .json({ success: true, message: "User Verified SuccessFully" });
+    } catch (error) {
+      next(error);
+    }
+  },
 };

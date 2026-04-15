@@ -9,6 +9,7 @@ const router = express.Router();
 router.post('/', userController.createuser);
 router.post('/login',loginRateLimiter, userController.login);
 router.post('/refresh',validateCsrf, userController.refreshToken);
+router.post('/verify',userController.verifyUser)
 
 router.use(Authenticate);
 

@@ -1,7 +1,7 @@
-import { Types } from "mongoose";
+import { ObjectId, Types } from "mongoose";
 import { tokenRepository } from "./token.repository";
 import { createHash } from "crypto";
-import bcrypt from 'bcrypt';
+import bcrypt from "bcrypt";
 import generateToken from "../../utils/generateToken";
 import env from "../../config/env.config";
 import { emailQueue } from "../../config/queue.config";
@@ -39,15 +39,15 @@ export const tokenService = {
     return !!tokenDoc;
   },
 
-  async forgotPassword(email: string,type: TokenType = TokenType.PASSWORD_RESET) {
+  async forgotPassword(
+    email: string,
+    type: TokenType = TokenType.PASSWORD_RESET,
+  ) {
     const admin = await adminRepository.findByEmail(email);
 
     if (!admin) return true;
 
-    await tokenRepository.invalidateByUser(
-      admin._id.toString(),
-      type
-    );
+    await tokenRepository.invalidateByUser(admin._id.toString(), type);
 
     const rawToken = generateToken({ prefix: "reset_" });
     const tokenHash = hashToken(rawToken);
@@ -77,7 +77,7 @@ export const tokenService = {
 
     const tokenDoc = await tokenRepository.getByToken(
       tokenHash,
-      TokenType.PASSWORD_RESET
+      TokenType.PASSWORD_RESET,
     );
 
     if (!tokenDoc || !tokenDoc.user) {
@@ -95,22 +95,15 @@ export const tokenService = {
     admin.password = hashedPassword;
     await adminRepository.save(admin);
 
-    await tokenRepository.markAsUsed(
-      tokenHash,
-      TokenType.PASSWORD_RESET
-    );
+    await tokenRepository.markAsUsed(tokenHash, TokenType.PASSWORD_RESET);
 
     return true;
   },
 
-
-  async verifyAdminInvite(token: string) {
+  async verifyToken(token: string, type: TokenType) {
     const tokenHash = hashToken(token);
 
-    const tokenDoc = await tokenRepository.getByToken(
-      tokenHash,
-      TokenType.ADMIN_INVITE
-    );
+    const tokenDoc = await tokenRepository.getByToken(tokenHash, type);
 
     return tokenDoc;
   },
@@ -120,7 +113,7 @@ export const tokenService = {
 
     const result = await tokenRepository.markAsUsed(
       tokenHash,
-      TokenType.ADMIN_INVITE
+      TokenType.ADMIN_INVITE,
     );
 
     return result.modifiedCount > 0;
@@ -129,10 +122,38 @@ export const tokenService = {
   async invalidateAllByEmail(email: string) {
     const result = await tokenRepository.invalidateByEmail(
       email,
-      TokenType.ADMIN_INVITE
+      TokenType.ADMIN_INVITE,
     );
 
     return result.modifiedCount > 0;
   },
 
+  async createVerifyUserToken(email: string, userId:string) {
+    const expiryAt = new Date(Date.now() + 1000 * 60 * 20);
+
+    const rawToken = generateToken({ prefix: "verify_" });
+    const tokenHash = hashToken(rawToken);
+
+    await tokenRepository.invalidateByEmail(
+      email,
+      TokenType.EMAIL_VERIFICATION,
+    );
+
+    const tokenDoc = await tokenRepository.create({
+      email,
+      user: new Types.ObjectId(userId),
+      tokenHash,
+      type: TokenType.EMAIL_VERIFICATION,
+      expiryAt,
+    });
+
+    const verifyLink = `${env.FRONTEND_URL}/verify-email?token=${rawToken}`;
+
+    await emailQueue.add(EMAIL_JOBS.SEND_VERIFY_LINK, {
+      email,
+      verifyLink,
+    });
+
+    return !!tokenDoc;
+  },
 };

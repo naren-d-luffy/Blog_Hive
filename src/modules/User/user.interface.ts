@@ -6,6 +6,7 @@ export interface IUser extends Document {
   password: string;
   role: "user";
   status: "active" | "inactive";
+  isVerified: boolean,
 
   csrfToken: string | null;
   refreshToken: string | null;

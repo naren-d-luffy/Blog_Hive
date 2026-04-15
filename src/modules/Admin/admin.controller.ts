@@ -6,6 +6,7 @@ import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
 import { tokenService } from "../Token/token.service";
 import { forgotPasswordSchema } from "../Token/token.validator";
+import { TokenType } from "../Token/token.interface";
 
 interface params {
   id: string;
@@ -18,7 +19,8 @@ export const adminController = {
       if (!token) {
         return next(new AppError("Invite token is required", 400));
       }
-      const isValid = await tokenService.verifyAdminInvite(token);
+      const type = TokenType.ADMIN_INVITE
+      const isValid = await tokenService.verifyToken(token, type);
       if (!isValid) {
         return next(new AppError("Invalid or expired invite token", 400));
       }

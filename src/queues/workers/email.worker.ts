@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import { EMAIL_JOBS } from "../email.queue";
 import { emailService } from "../../modules/Notification/email.service";
 import { emailTemplates } from "../../modules/Notification/email.templates";
-import { redisClient } from "../../config/redis.config";
+import redisClient from "../../config/redis.config";
 import connectDB from "../../config/db.config";
 
 (async () => {
@@ -30,10 +30,10 @@ import connectDB from "../../config/db.config";
             break;
           }
 
-          case EMAIL_JOBS.SEND_OTP: {
-            const { email, otp } = job.data;
+          case EMAIL_JOBS.SEND_VERIFY_LINK: {
+            const { email, verifyLink } = job.data;
 
-            const template = emailTemplates.otp(otp);
+            const template = emailTemplates.verifyUser(verifyLink);
 
             await emailService.sendEmail(
               email,

@@ -8,6 +8,7 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true, select: false },
     role: { type: String, default: "user", enum:["user"] },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true,},
+    isVerified: {type: Boolean, default:false},
 
     csrfToken: {type:String, select:false},
     refreshToken: { type: String, select:false},

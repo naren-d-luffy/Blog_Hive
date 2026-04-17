@@ -87,3 +87,6 @@ npm run worker:log
 - Environment variables: `doc/ENVIRONMENT_VARIABLES.md`
 - API guide: `doc/API_GUIDE.md`
 - Production runbook: `doc/PRODUCTION_RUNBOOK.md`
+
+## License
+This project is licensed under the MIT License.

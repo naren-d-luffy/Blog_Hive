@@ -15,7 +15,7 @@ export const userRepository = {
   },
 
   getPasswordById(id:string){
-    return User.findOne({_id: id,isdeleted:false}).select("+password")
+    return User.findOne({_id: id,isDeleted:false}).select("+password")
   },
 
   findByEmail(email: string) {

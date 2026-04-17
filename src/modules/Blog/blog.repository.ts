@@ -177,7 +177,7 @@ export const blogRepository = {
 
   decrementLikes(id: string, userId: string) {
     return Blog.updateOne(
-      { _id: id, isDeleted: false },
+      { _id: id, isDeleted: false, likes: userId, likeCount: { $gt: 0 } },
       {
         $pull: { likes: userId },
         $inc: { likeCount: -1 },

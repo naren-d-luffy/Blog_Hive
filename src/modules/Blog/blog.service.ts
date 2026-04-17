@@ -26,6 +26,15 @@ const QUEUE_OPTS = {
   backoff: { type: "exponential" as const, delay: 2000 },
 };
 
+const deleteCacheByPatterns = async (patterns: string[]) => {
+  for (const pattern of patterns) {
+    const keys = await redisClient.keys(pattern);
+    if (keys.length > 0) {
+      await redisClient.del(...keys);
+    }
+  }
+};
+
 // Service
 export const blogService = {
   // Sanitize
@@ -78,10 +87,7 @@ export const blogService = {
       createdBy: new mongoose.Types.ObjectId(id),
     });
 
-    await Promise.all([
-      redisClient.del("allBlog:*"),
-      redisClient.del("allPopularBlog:*"),
-    ]);
+    await deleteCacheByPatterns(["allBlog:*", "allPopularBlog:*"]);
 
     return this.sanitizeBlog(newBlog);
   },
@@ -281,13 +287,14 @@ export const blogService = {
     });
 
     if (!updated) throw new AppError("Blog update failed", 500);
-    await Promise.all([
-      redisClient.del("allBlog:*"),
-      redisClient.del("allPopularBlog:*"),
-      redisClient.del(`blog:${blogId}`),
-      redisClient.del("allBlogByCategory:*"),
-      redisClient.del("allBlogByTag:*"),
-      redisClient.del("search:*"),
+    await Promise.all([redisClient.del(`blog:${blogId}`), redisClient.del(`slug:${slug.trim()}`)]);
+    await deleteCacheByPatterns([
+      "allBlog:*",
+      "allPopularBlog:*",
+      "allBlogByCategory:*",
+      "allBlogByTag:*",
+      "allBlogByAuthor:*",
+      "search:*",
     ]);
 
     const newScore = calculatePopularity(updated);
@@ -300,7 +307,7 @@ export const blogService = {
   async deleteBlog(
     blogId: string,
     requesterId: string,
-    requesterRole: "User" | "Admin",
+    requesterRole: "user" | "admin",
   ) {
     checkId(blogId);
     checkId(requesterId);
@@ -309,22 +316,25 @@ export const blogService = {
     if (!existing) throw new AppError("Blog not found", 404);
 
     const isOwner = existing.createdBy.toString() === requesterId;
-    if (!isOwner && requesterRole !== "Admin")
+    if (!isOwner && requesterRole !== "admin")
       throw new AppError("Forbidden: you do not own this blog", 403);
+
+    const actorModel = requesterRole === "admin" ? "Admin" : "User";
 
     const deleted = await blogRepository.softDelete(
       blogId,
       requesterId,
-      requesterRole,
+      actorModel,
     );
     if (!deleted) throw new AppError("Blog deletion failed", 500);
-    await Promise.all([
-      redisClient.del("allBlog:*"),
-      redisClient.del("allPopularBlog:*"),
-      redisClient.del(`blog:${blogId}`),
-      redisClient.del("allBlogByCategory:*"),
-      redisClient.del("allBlogByTag:*"),
-      redisClient.del("search:*"),
+    await Promise.all([redisClient.del(`blog:${blogId}`), redisClient.del(`slug:${existing.slug.trim()}`)]);
+    await deleteCacheByPatterns([
+      "allBlog:*",
+      "allPopularBlog:*",
+      "allBlogByCategory:*",
+      "allBlogByTag:*",
+      "allBlogByAuthor:*",
+      "search:*",
     ]);
 
     return { id: blogId, deleted: true };

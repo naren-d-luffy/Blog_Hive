@@ -15,7 +15,7 @@ export const adminRepository = {
   },
 
   getPasswordById(id: string) {
-    return Admin.findOne({ _id:id, isdeleted: false }).select("+password");
+    return Admin.findOne({ _id:id, isDeleted: false }).select("+password");
   },
 
   findByEmailWithPassword(email: string) {

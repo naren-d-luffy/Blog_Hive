@@ -100,7 +100,7 @@ export const userController = {
 
       res.clearCookie("refreshToken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: env.NODE_ENV === "production",
         sameSite: "strict",
       });
 
@@ -184,7 +184,9 @@ export const userController = {
   verifyUser: asyncHandler (async (req: Request, res: Response) => {
       const parsed = verifyUserSchema.parse(req.body);
       if (!parsed.token)
-        res.status(401).json({ success: false, message: "Token is required." });
+        return res
+          .status(401)
+          .json({ success: false, message: "Token is required." });
       await userService.verifyUser(parsed.token);
       res.status(201).json({ success: true, message: "User Verified SuccessFully" });
   }),

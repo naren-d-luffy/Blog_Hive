@@ -19,6 +19,7 @@ const errorHandler = (
   res: Response,
   next: NextFunction,
 ) => {
+  res.locals.error = err; // Storing err for logger
   console.error("ERROR:", err);
 
   let statusCode = err instanceof AppError ? err.statusCode : 500;

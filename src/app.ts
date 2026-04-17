@@ -7,8 +7,10 @@ import { rateLimiter } from "./middleware/global.rateLimiter";
 import mongoose from "mongoose";
 import redisClient from "./config/redis.config";
 import corsConfig from "./config/cors.config";
+import { httpLogger } from "./middleware/logger.middleware";
 const app = express()
 
+app.use(httpLogger);
 
 app.use(helmet());
 app.use(corsConfig);

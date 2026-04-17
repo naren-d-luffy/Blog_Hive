@@ -19,6 +19,15 @@ export const emailQueueEvents = new QueueEvents("email-queue", {
   connection: redisClient,
 });
 
+// ---------------- LOG QUEUE ----------------
+export const logQueue = new Queue("log-queue", {
+  connection: redisClient,
+});
+
+export const logQueueEvents = new QueueEvents("log-queue", {
+  connection: redisClient,
+});
+
 // ---------------- EVENTS ----------------
 blogQueueEvents.on("completed", ({ jobId }) => {
   console.log(`[BLOG] Job ${jobId} completed`);
@@ -34,4 +43,8 @@ emailQueueEvents.on("completed", ({ jobId }) => {
 
 emailQueueEvents.on("failed", ({ jobId, failedReason }) => {
   console.log(`[EMAIL] Job ${jobId} failed: ${failedReason}`);
+});
+
+logQueueEvents.on("failed", ({ jobId, failedReason }) => {
+  console.log(`[LOG] Job ${jobId} failed: ${failedReason}`);
 });

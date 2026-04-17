@@ -1,17 +1,10 @@
 import { Request, Response, NextFunction, response } from "express";
 import { userService } from "./user.service";
-import {
-  userLoginSchema,
-  createUserSchema,
-  changePasswordSchema,
-  verifyUserSchema,
-} from "./user.validator";
+import {userLoginSchema,createUserSchema,changePasswordSchema,verifyUserSchema,} from "./user.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
 import asyncHandler from "../../utils/asyncHandler";
-
-type IdRequest = Request<{ id: string }>;
 
 export const userController = {
   createuser: asyncHandler (async (req: Request, res: Response) => {

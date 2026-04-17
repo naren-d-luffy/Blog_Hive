@@ -18,7 +18,8 @@ function parsePagination(query: Request["query"]): {
 // Controller
 export const blogController = {
   createBlog: asyncHandler(async (req: Request, res: Response) => {
-    const id: string = (req as any).user?.id;
+    const id = req.user?.id;
+    if (!id) throw new AppError("Authentication required", 401);
     const result = createBlogSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({
@@ -161,9 +162,10 @@ export const blogController = {
   }),
 
   deleteBlog: asyncHandler(async (req: Request, res: Response) => {
-    const requesterId: string = (req as any).user?.id;
-    const requesterRole: "User" | "Admin" = (req as any).user?.role ?? "User";
+    const requesterId = req.user?.id;
+    const requesterRole = req.user?.role;
     if (!requesterId) throw new AppError("Authentication required", 401);
+    if (!requesterRole) throw new AppError("Role is required", 403);
 
     const result = await blogService.deleteBlog(
       str(req.params.id),
@@ -187,7 +189,7 @@ export const blogController = {
   }),
 
   likeBlog: asyncHandler(async (req: Request, res: Response) => {
-    const userId: string = (req as any).user?.id;
+    const userId = req.user?.id;
     if (!userId) throw new AppError("Authentication required", 401);
 
     const result = await blogService.likeBlog(str(req.params.id), userId);
@@ -199,7 +201,7 @@ export const blogController = {
   }),
 
   unlikeBlog: asyncHandler(async (req: Request, res: Response) => {
-    const userId: string = (req as any).user?.id;
+    const userId = req.user?.id;
     if (!userId) throw new AppError("Authentication required", 401);
 
     const result = await blogService.unlikeBlog(str(req.params.id), userId);

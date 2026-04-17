@@ -70,6 +70,7 @@ export const userService = {
     };
 
     await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
+    return result;
   },
 
   async findUserById(id: string) {

@@ -88,5 +88,8 @@ npm run worker:log
 - API guide: `doc/API_GUIDE.md`
 - Production runbook: `doc/PRODUCTION_RUNBOOK.md`
 
+## Author
+RamNaren
+
 ## License
 This project is licensed under the MIT License.

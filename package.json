@@ -1,8 +1,8 @@
 {
-  "name": "blog_back",
+  "name": "blog-back",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A high-performance backend for a blog system using Express, TypeScript, and Redis.",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn src/server.ts",
     "build": "tsc",
@@ -12,9 +12,29 @@
     "worker:log": "ts-node src/queues/workers/log.worker.ts",
     "worker": "concurrently \"npm run worker:blog\" \"npm run worker:email\" \"npm run worker:log\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "blog",
+    "backend",
+    "express",
+    "typescript",
+    "bullmq",
+    "redis",
+    "pino-logging",
+    "mongoose"
+  ],
+  "author": "RamNaren",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/naren-d-luffy/Blog_Back.git"
+  },
+  "bugs": {
+    "url": "https://github.com/naren-d-luffy/Blog_Back/issues"
+  },
+  "homepage": "https://github.com/naren-d-luffy/Blog_Back#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "type": "commonjs",
   "dependencies": {
     "bcrypt": "^6.0.0",

@@ -33,6 +33,42 @@ Production-focused backend for a blog platform built with Node.js, Express, Type
 - `src/router/` - main route aggregator
 - `doc/` - API collection and operational documentation
 
+```bash
+/
+├── doc/
+│   ├── API_GUIDE.md
+│   ├── ARCHITECTURE.md
+│   ├── ENVIRONMENT_VARIABLES.md
+│   └── PRODUCTION_RUNBOOK.md
+│
+├── src/
+│   ├── app.ts
+│   ├── server.ts
+│   ├── config/
+│   ├── middleware/
+│   ├── modules/
+│   │   ├── Admin/
+│   │   ├── User/
+│   │   ├── Blog/
+│   │   ├── Comment/
+│   │   ├── Notification/
+│   │   └── Token/
+│   ├── queues/
+│   ├── router/
+│   ├── service/
+│   ├── types/
+│   └── utils/
+│
+├── package.json
+├── tsconfig.json
+├── Dockerfile
+├── .dockerignore
+├── .gitignore
+├── .env.example
+├── README.md
+└── LICENSE
+```
+
 ## Getting Started
 
 ### 1. Install dependencies
@@ -71,6 +107,15 @@ Start workers in separate processes:
 npm run worker:blog
 npm run worker:email
 npm run worker:log
+```
+
+## Docker Support
+
+Build and run with Docker:
+
+```bash
+docker build -t blog-back .
+docker run -p 3000:3000 blog-back
 ```
 
 ## API Documentation

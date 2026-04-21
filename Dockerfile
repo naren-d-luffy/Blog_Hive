@@ -39,7 +39,7 @@ EXPOSE 5000
 
 # Metadata labels
 LABEL maintainer="RamNaren"
-LABEL description="High-performance backend for Blog_Back project"
+LABEL description="High-performance backend for Blog_Hive project"
 
 # Run the server
 CMD ["npm", "start"]

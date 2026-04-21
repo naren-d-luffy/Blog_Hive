@@ -115,7 +115,13 @@ Build and run with Docker:
 
 ```bash
 docker build -t blog-back .
-docker run -p 3000:3000 blog-back
+```
+>Run Container
+
+This project requires environment variables to run. Use the provided .env.example file.
+
+```bash
+docker run --env-file .env -p 5000:5000 blog-back
 ```
 
 ## API Documentation

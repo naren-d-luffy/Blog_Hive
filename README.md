@@ -1,6 +1,6 @@
-# Blog Backend
+# Blog Hive
 
-Production-focused backend for a blog platform built with Node.js, Express, TypeScript, MongoDB, Redis, and BullMQ.
+A production-ready, scalable blog backend built with Node.js, Express, TypeScript, MongoDB, Redis, and BullMQ.
 
 ## Tech Stack
 

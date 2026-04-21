@@ -124,6 +124,21 @@ This project requires environment variables to run. Use the provided .env.exampl
 docker run --env-file .env -p 5000:5000 blog-back
 ```
 
+> Blog worker
+```bash
+docker run --env-file .env blog-back npm run worker:blog
+```
+
+> Email worker
+```bash
+docker run --env-file .env blog-back npm run worker:email
+```
+
+> Log worker
+```bash
+docker run --env-file .env blog-back npm run worker:log
+```
+
 ## API Documentation
 
 - Postman collection: `doc/Blog Backend.postman_collection.json`

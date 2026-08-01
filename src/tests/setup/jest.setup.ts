@@ -1,3 +1,6 @@
+import "./dbSetup";
+import "./redisMock";
+
 beforeEach(() => {
     jest.clearAllMocks();
 });

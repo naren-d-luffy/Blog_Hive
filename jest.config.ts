@@ -6,15 +6,14 @@ const config: Config = {
 
   roots: ["<rootDir>/src/tests"],
 
-  testMatch: [
-    "**/src/tests/unit/**/*.test.ts",
-    "**/src/tests/integration/**/*.test.ts",
-    "**/src/tests/e2e/**/*.test.ts",
-  ],
+  testMatch: ["**/*.test.ts"],
 
   moduleFileExtensions: ["ts", "js", "json"],
+
   clearMocks: true,
+
   collectCoverage: true,
+
   collectCoverageFrom: [
     "src/**/*.ts",
     "!src/**/*.d.ts",
@@ -22,9 +21,10 @@ const config: Config = {
   ],
 
   coverageDirectory: "coverage",
+
   setupFilesAfterEnv: [
-    "<rootDir>/src/tests/setup/jest.setup.ts"
-],
+    "<rootDir>/src/tests/setup/jest.setup.ts",
+  ],
 };
 
 export default config;

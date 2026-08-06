@@ -7,7 +7,7 @@ import { IUser } from "./user.interface";
 import { UserLoginInput, CreateUserInput } from "./user.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
-import redisClient from "../../config/redis.config";
+import {redisClient} from "../../config/redis.config";
 import generateToken from "../../utils/generateToken";
 import { tokenService } from "../Token/token.service";
 import { TokenType } from "../Token/token.interface";

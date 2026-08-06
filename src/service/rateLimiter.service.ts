@@ -1,4 +1,4 @@
-import redis from "../config/redis.config";
+import {redisClient} from "../config/redis.config";
 
 const luaScript = `
 local key = KEYS[1]
@@ -38,10 +38,10 @@ export const createRateLimiter = (capacity: number, refillRate: number) => {
     const now = Date.now();
 
     if (!cachedSha) {
-      cachedSha = await redis.script("LOAD", luaScript) as string;
+      cachedSha = await redisClient.script("LOAD", luaScript) as string;
     }
 
-    const result = await redis.evalsha(
+    const result = await redisClient.evalsha(
       cachedSha,
       1,
       key,

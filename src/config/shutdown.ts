@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import redisClient from "./redis.config";
+import {redisClient} from "./redis.config";
 import { Server } from "http";
 
 export const gracefulShutdown = async (server?: Server) => {

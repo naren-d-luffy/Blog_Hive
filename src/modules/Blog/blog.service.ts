@@ -8,7 +8,7 @@ import { calculatePopularity } from "../../utils/calculatePopularity";
 import { CreateBlogInput, UpdateBlogInput } from "./blog.validation";
 import { BLOG_JOBS } from "../../queues/blog.queue";
 import mongoose from "mongoose";
-import redisClient from "../../config/redis.config";
+import {redisClient} from "../../config/redis.config";
 
 // Types
 export interface PaginatedResult<T> {

@@ -5,7 +5,7 @@ import errorHandler from "./middleware/error.middleware";
 import router from "./router/index";
 import { rateLimiter } from "./middleware/global.rateLimiter";
 import mongoose from "mongoose";
-import redisClient from "./config/redis.config";
+import {redisClient} from "./config/redis.config";
 import corsConfig from "./config/cors.config";
 const app = express()
 

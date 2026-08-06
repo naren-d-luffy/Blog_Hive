@@ -7,7 +7,7 @@ import { IUser } from "./user.interface";
 import { UserLoginInput, CreateUserInput } from "./user.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
-import redisClient from "../../config/redis.config";
+import {redisClient} from "../../config/redis.config";
 import generateToken from "../../utils/generateToken";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;

@@ -11,12 +11,13 @@
     "worker:email": "ts-node src/queues/workers/email.worker.ts",
     "worker:log": "ts-node src/queues/workers/log.worker.ts",
     "worker": "concurrently \"npm run worker:blog\" \"npm run worker:email\" \"npm run worker:log\"",
+    "seed": "ts-node --project tsconfig.seed.json facker.script.ts",
     "test": "jest --runInBand",
     "test:unit": "jest tests/unit --runInBand",
     "test:integration": "jest tests/integration --runInBand",
     "test:e2e": "jest tests/e2e --runInBand",
     "test:watch": "jest --watch",
-    "coverage": "jest --coverage"
+    "bench": "k6-bin\\k6-v0.57.0-windows-amd64\\k6.exe run"
   },
   "keywords": [
     "blog",
@@ -51,6 +52,7 @@
     "crypto": "^1.0.1",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "fs": "^0.0.1-security",
     "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
     "jest": "^30.4.2",

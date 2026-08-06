@@ -76,3 +76,12 @@ docker-compose.override.yml
 # =========================
 *.tgz
 *.bak
+
+# =========================
+# k6 binary and results
+# =========================
+k6-bin/
+k6.zip
+results/
+users.json
+blogs.json

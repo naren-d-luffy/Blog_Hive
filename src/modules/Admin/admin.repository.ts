@@ -11,7 +11,11 @@ export const adminRepository = {
   },
 
   getSessionById(id: string) {
-  return Admin.findOne({ _id: id, isDeleted: false }).select("+csrfToken +refreshToken");
+  return Admin.findOne({ _id: id, isDeleted: false }).select("+csrfToken +refreshToken +refreshTokenExpiryAt");
+  },
+
+  getSessionByRefreshToken(refreshToken: string) {
+    return Admin.findOne({ refreshToken, isDeleted: false }).select("+csrfToken +refreshToken +refreshTokenExpiryAt");
   },
 
   getPasswordById(id: string) {

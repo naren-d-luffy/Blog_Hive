@@ -1,5 +1,6 @@
-import { randomBytes } from "crypto";
+import { randomBytes, createHmac, timingSafeEqual } from "node:crypto";
 import AppError from "./AppError";
+import env from "../config/env.config";
 
 type TokenOptions = {
     length ?: number,
@@ -7,7 +8,9 @@ type TokenOptions = {
     prefix?:string,
 };
 
-const generateToken = (options: TokenOptions={}):string => {
+const HASH_TOKEN = env.HASH_TOKEN
+
+export const generateToken = (options: TokenOptions={}):string => {
     const {
         length= 32,
         encoding= "base64url",
@@ -39,4 +42,24 @@ const generateToken = (options: TokenOptions={}):string => {
     return prefix ? `${prefix}${token}` : token;
 }
 
-export default generateToken
+export const hashToken = (token : string):string => {
+    if(!token){
+        throw new AppError("Token is required",400);
+    }
+
+    const hashedToken = createHmac("sha256", HASH_TOKEN).update(token, "utf8").digest("hex")
+    return hashedToken;
+}
+
+export const verifyToken = (token:string, storedHash:string): boolean => {
+    if(!token || !storedHash) return false;
+
+    const hashedToken = hashToken(token);
+
+    const hasedBuffer = Buffer.from(hashedToken,"hex");
+    const storedBuffer = Buffer.from(storedHash,"hex");
+
+    if(hasedBuffer.length !== storedBuffer.length) return false;
+
+    return timingSafeEqual(hasedBuffer, storedBuffer);
+}

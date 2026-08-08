@@ -9,6 +9,7 @@ const envSchema = z.object({
   DB_URL: z.string().min(1, "DB URL is required"),
   ACCESS_TOKEN: z.string().min(32, "Access Token should be 32 characters long"),
   REFRESH_TOKEN: z.string().min(32, "Refresh Token should be 32 characters long"),
+  HASH_TOKEN: z.string().min(32, "Hash Token should be 32 characters long"),
   LOGIN_FAILURE_COUNT: z.coerce.number().min(1).default(3),
   LOCK_UNTIL_TIME: z.coerce.number().min(1).default(15),
   REDIS_HOST: z.string().min(1, "Redis IP is required"),

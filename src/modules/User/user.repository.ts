@@ -11,7 +11,11 @@ export const userRepository = {
   },
 
   getSessionById(id: string) {
-  return User.findOne({ _id: id, isDeleted: false }).select("+csrfToken +refreshToken");
+  return User.findOne({ _id: id, isDeleted: false }).select("+csrfToken +refreshToken +refreshTokenExpiryAt");
+  },
+
+  getSessionByRefreshToken(refreshToken: string) {
+    return User.findOne({ refreshToken, isDeleted: false }).select("+csrfToken +refreshToken +refreshTokenExpiryAt");
   },
 
   getPasswordById(id:string){

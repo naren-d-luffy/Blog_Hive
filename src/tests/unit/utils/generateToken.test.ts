@@ -1,4 +1,4 @@
-import generateToken from "../../../utils/generateToken";
+import {generateToken} from "../../../utils/generateToken";
 import AppError from "../../../utils/AppError";
 
 describe("generateToken", () => {

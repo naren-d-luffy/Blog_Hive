@@ -7,14 +7,12 @@ import { IUser } from "./user.interface";
 import { UserLoginInput, CreateUserInput } from "./user.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
-import {redisClient} from "../../config/redis.config";
-import generateToken from "../../utils/generateToken";
+import { redisClient } from "../../config/redis.config";
+import { generateToken, hashToken } from "../../utils/generateToken";
 import { tokenService } from "../Token/token.service";
 import { TokenType } from "../Token/token.interface";
-import mongoose from "mongoose";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
-const REFRESH_SECRET = env.REFRESH_TOKEN;
 const FAILURE_COUNT = env.LOGIN_FAILURE_COUNT;
 const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME * 60 * 1000;
 
@@ -121,16 +119,17 @@ export const userService = {
 
     //CSRF Handler
     const csrfToken = generateToken({ length: 32 });
-    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    const hashedCsrf = hashToken(csrfToken);
     user.csrfToken = hashedCsrf;
 
     //Access and Refresh Handler
     const payload: AuthUser = { id: user.id, role: user.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
     user.refreshToken = hashedRefresh;
+    user.refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
     await userRepository.save(user);
 
     const safeData = this.sanitizeUser(user);
@@ -168,16 +167,18 @@ export const userService = {
 
   async postRefresh(user: { id: string; role: "user" }) {
     const csrfToken = generateToken({ length: 32 });
-    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    const hashedCsrf = hashToken(csrfToken);
 
     let payload: AuthUser = { id: user.id, role: user.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
+    const refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await userRepository.update(user.id, {
       refreshToken: hashedRefresh,
+      refreshTokenExpiryAt,
       csrfToken: hashedCsrf,
     });
 

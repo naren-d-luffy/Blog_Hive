@@ -2,7 +2,7 @@ import { ObjectId, Types } from "mongoose";
 import { tokenRepository } from "./token.repository";
 import { createHash } from "crypto";
 import bcrypt from "bcrypt";
-import generateToken from "../../utils/generateToken";
+import { generateToken } from "../../utils/generateToken";
 import env from "../../config/env.config";
 import { emailQueue } from "../../config/queue.config";
 import { EMAIL_JOBS } from "../../queues/email.queue";

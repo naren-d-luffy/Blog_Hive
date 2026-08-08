@@ -7,8 +7,8 @@ import { IAdmin } from "./admin.interface";
 import { AdminLoginInput, CreateAdminInput } from "./admin.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
-import {redisClient} from "../../config/redis.config";
-import generateToken from "../../utils/generateToken";
+import { redisClient } from "../../config/redis.config";
+import { generateToken, hashToken } from "../../utils/generateToken";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const REFRESH_SECRET = env.REFRESH_TOKEN;
@@ -64,7 +64,7 @@ export const adminService = {
       totalPage: Math.ceil(total / limit),
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
@@ -117,16 +117,18 @@ export const adminService = {
 
     //CSFR Handling
     const csrfToken = generateToken({ length: 32 });
-    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    const hashedCsrf = hashToken(csrfToken);
     admin.csrfToken = hashedCsrf;
 
     //Access and Refresh Token Handling
     const payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
+
     admin.refreshToken = hashedRefresh;
+    admin.refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await adminRepository.save(admin);
 
     const safeData = this.sanitizeAdmin(admin);
@@ -165,24 +167,26 @@ export const adminService = {
   async postRefresh(admin: { id: string; role: "admin" }) {
     //CSRF Handler
     const csrfToken = generateToken({ length: 32 });
-    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    const hashedCsrf = hashToken(csrfToken);
 
     //Access and Refresh Handler
     let payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
+    const refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await adminRepository.update(admin.id, {
       refreshToken: hashedRefresh,
+      refreshTokenExpiryAt,
       csrfToken: hashedCsrf,
     });
 
     return { accessToken, refreshToken, csrfToken };
   },
 
-  async changePassword(id: string,currentPassword: string,newPassword: string) {
+  async changePassword(id: string, currentPassword: string, newPassword: string) {
     const admin = await adminRepository.getPasswordById(id);
     if (!admin) throw new AppError("Admin not found", 400);
 

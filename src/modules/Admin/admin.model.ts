@@ -11,6 +11,7 @@ const adminSchema = new Schema<IAdmin>(
 
     csrfToken: {type : String, select:false},
     refreshToken: { type: String, select:false},
+    refreshTokenExpiryAt: {type: Date, select:false},
     isDeleted: { type: Boolean, default: false },
     deletedDate: { type: Date },
     lastLogin: { type: Date },

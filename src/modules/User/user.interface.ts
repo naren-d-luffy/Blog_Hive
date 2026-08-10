@@ -10,6 +10,7 @@ export interface IUser extends Document {
 
   csrfToken: string | null;
   refreshToken: string | null;
+  refreshTokenExpiryAt: Date;
   isDeleted: boolean;
   deletedDate: Date;
   lastLogin: Date;

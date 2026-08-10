@@ -3,18 +3,36 @@
 
 export const BASE_URL = "http://localhost:5000";
 
-export const USER_EMAIL    = "user0@example.com";   // seeded user
-export const USER_PASSWORD = "Password1";            // default seeded password
+export const USER_EMAIL    = "naren@gmail.com";   // seeded user
+export const USER_PASSWORD = "Password123!";            // default seeded password
 
 // Standard ramp-up/hold/ramp-down stages used across all scripts.
 // Tweak VUs here to match your machine capacity.
+// export const STAGES = [
+//   { duration: "30s", target: 20  },  // ramp up
+//   { duration: "1m",  target: 20  },  // hold (warm cache, steady state)
+//   { duration: "30s", target: 50  },  // stress
+//   { duration: "1m",  target: 50  },  // hold under stress
+//   { duration: "20s", target: 0   },  // ramp down
+// ];
+
 export const STAGES = [
-  { duration: "30s", target: 20  },  // ramp up
-  { duration: "1m",  target: 20  },  // hold (warm cache, steady state)
-  { duration: "30s", target: 50  },  // stress
-  { duration: "1m",  target: 50  },  // hold under stress
-  { duration: "20s", target: 0   },  // ramp down
+  { duration: "30s", target: 1 },
+  { duration: "2m", target: 1 },
+  { duration: "20s", target: 0 },
 ];
+
+// export const STAGES = [
+//   { duration: "30s", target: 20 },
+//   { duration: "2m", target: 20 },
+//   { duration: "20s", target: 0 },
+// ];
+
+// export const STAGES = [
+//   { duration: "30s", target: 50 },
+//   { duration: "2m", target: 50 },
+//   { duration: "20s", target: 0 },
+// ];
 
 // Pass/fail thresholds shared by all scripts.
 export const THRESHOLDS = {

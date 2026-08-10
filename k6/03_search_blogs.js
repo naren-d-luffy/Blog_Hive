@@ -38,7 +38,7 @@ export const options = {
   stages: STAGES,
   thresholds: {
     ...THRESHOLDS,
-    search_duration_ms: ["p(95)<600"],   // text search is heavier
+    search_duration_ms: ["p(95)<600"],
     search_error_rate:  ["rate<0.01"],
   },
 };

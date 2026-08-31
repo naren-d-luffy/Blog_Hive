@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import redisClient from "../../config/redis.config";
+import { redisClient } from "../../config/redis.config";
 import connectDB from "../../config/db.config";
 import { LOG_JOBS } from "../log.queue";
 import { ILogSchema } from "../../modules/Logger/logger.interface";

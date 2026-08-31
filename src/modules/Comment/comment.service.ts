@@ -4,7 +4,7 @@ import checkId from "../../utils/CheckId";
 import commentRepository from "./comment.repository";
 import { blogService } from "../Blog/blog.service";
 import { IComment } from "./comment.interface";
-import redisClient from "../../config/redis.config";
+import { redisClient } from "../../config/redis.config";
 
 // Types
 export interface PaginatedResult<T> {

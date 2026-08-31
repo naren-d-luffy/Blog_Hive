@@ -13,10 +13,8 @@ import {redisClient} from "../../config/redis.config";
 // Types
 export interface PaginatedResult<T> {
   data: T[];
-  total: number;
   page: number;
   limit: number;
-  totalPages: number;
   hasNextPage: boolean;
   hasPrevPage: boolean;
 }
@@ -61,18 +59,16 @@ export const blogService = {
   // Pagination envelope
   buildPaginatedResponse<T>(
     data: T[],
-    total: number,
     page: number,
     limit: number,
   ): PaginatedResult<T> {
-    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = data.length > limit;
+    const slicedData = hasNextPage ? data.slice(0, limit) : data;
     return {
-      data,
-      total,
+      data: slicedData,
       page,
       limit,
-      totalPages,
-      hasNextPage: page < totalPages,
+      hasNextPage,
       hasPrevPage: page > 1,
     };
   },
@@ -100,17 +96,10 @@ export const blogService = {
       return JSON.parse(cached);
     }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findAll(skip, limit),
-      blogRepository.totalCount(),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
-      limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    const rawData = await blogRepository.findAll(skip, limit + 1);
+    const sanitizedData = rawData.map((b) => this.sanitizeBlog(b)!);
+    const result = this.buildPaginatedResponse(sanitizedData, page, limit);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
@@ -121,17 +110,10 @@ export const blogService = {
       return JSON.parse(cached);
     }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findAllByPopularity(skip, limit),
-      blogRepository.totalCount(),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
-      limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    const rawData = await blogRepository.findAllByPopularity(skip, limit + 1);
+    const sanitizedData = rawData.map((b) => this.sanitizeBlog(b)!);
+    const result = this.buildPaginatedResponse(sanitizedData, page, limit);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
@@ -142,17 +124,10 @@ export const blogService = {
       return JSON.parse(cached);
     }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findByCategory(category, skip, limit),
-      blogRepository.countByCategory(category),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
-      limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    const rawData = await blogRepository.findByCategory(category, skip, limit + 1);
+    const sanitizedData = rawData.map((b) => this.sanitizeBlog(b)!);
+    const result = this.buildPaginatedResponse(sanitizedData, page, limit);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
@@ -163,17 +138,10 @@ export const blogService = {
       return JSON.parse(cached);
     }
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findByTag(tag, skip, limit),
-      blogRepository.countByTag(tag),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
-      limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    const rawData = await blogRepository.findByTag(tag, skip, limit + 1);
+    const sanitizedData = rawData.map((b) => this.sanitizeBlog(b)!);
+    const result = this.buildPaginatedResponse(sanitizedData, page, limit);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
@@ -185,17 +153,10 @@ export const blogService = {
     }
     checkId(userId);
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findByAuthor(userId, skip, limit),
-      blogRepository.countByAuthor(userId),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
-      limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    const rawData = await blogRepository.findByAuthor(userId, skip, limit + 1);
+    const sanitizedData = rawData.map((b) => this.sanitizeBlog(b)!);
+    const result = this.buildPaginatedResponse(sanitizedData, page, limit);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
@@ -210,17 +171,10 @@ export const blogService = {
       console.log("Search cache hit");
       return JSON.parse(cached);
     }
-    const [data, total] = await Promise.all([
-      blogRepository.search(trimmedQuery, skip, limit),
-      blogRepository.countSearch(trimmedQuery),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
-      limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 30 );
+    const rawData = await blogRepository.search(trimmedQuery, skip, limit + 1);
+    const sanitizedData = rawData.map((b) => this.sanitizeBlog(b)!);
+    const result = this.buildPaginatedResponse(sanitizedData, page, limit);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 30);
     return result;
   },
 

@@ -84,42 +84,6 @@ export const blogRepository = {
       .lean();
   },
 
-  totalCount() {
-    return Blog.countDocuments({ isDeleted: false, status: "published" });
-  },
-
-  countByCategory(category: string) {
-    return Blog.countDocuments({
-      isDeleted: false,
-      status: "published",
-      category,
-    });
-  },
-
-  countByTag(tag: string) {
-    return Blog.countDocuments({
-      isDeleted: false,
-      status: "published",
-      tags: tag,
-    });
-  },
-
-  countByAuthor(userId: string) {
-    return Blog.countDocuments({
-      createdBy: userId,
-      isDeleted: false,
-      status: "published",
-    });
-  },
-
-  countSearch(query: string) {
-    return Blog.countDocuments({
-      isDeleted: false,
-      status: "published",
-      $text: { $search: query },
-    });
-  },
-
   update(id: string, data: Partial<IBlog>) {
     return Blog.findOneAndUpdate({ _id: id, isDeleted: false }, data, {
       returnDocument: "after",

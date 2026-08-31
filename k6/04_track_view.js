@@ -39,11 +39,11 @@ const viewErrors  = new Rate("view_error_rate");
 //   mongosh your-db --eval "db.blogs.find({},{_id:1}).limit(20).toArray()"
 // Then paste the IDs below.
 const BLOG_IDS = [
-  "REPLACE_WITH_REAL_OBJECTID_1",
-  "REPLACE_WITH_REAL_OBJECTID_2",
-  "REPLACE_WITH_REAL_OBJECTID_3",
-  "REPLACE_WITH_REAL_OBJECTID_4",
-  "REPLACE_WITH_REAL_OBJECTID_5",
+  "6a75b45ea36f97d25a86b6ce",
+  "6a75b45ea36f97d25a86b51a",
+  "6a75b45ea36f97d25a86b480",
+  "6a75b45ea36f97d25a86b318",
+  "6a75b45fa36f97d25a86b85e",
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 

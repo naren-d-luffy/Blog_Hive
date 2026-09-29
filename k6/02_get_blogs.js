@@ -68,7 +68,7 @@ export default function () {
     "blogs: has pagination":    (r) => {
       try {
         const b = JSON.parse(r.body);
-        return b.total !== undefined && b.totalPages !== undefined;
+        return b.hasNextPage !== undefined && b.hasPrevPage !== undefined;
       }
       catch { return false; }
     },

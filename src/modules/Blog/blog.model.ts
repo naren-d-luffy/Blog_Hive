@@ -29,12 +29,12 @@ const blogSchema = new Schema<IBlog>(
   {timestamps: true,}
 );
 
-blogSchema.index({ isDeleted: 1, createdAt: -1 });
-blogSchema.index({ isDeleted: 1, category: 1 }); 
-blogSchema.index({ isDeleted: 1, tags: 1 });
-blogSchema.index({ isDeleted: 1, popularityScore: -1, createdAt: -1 });
+blogSchema.index({ isDeleted: 1, status: 1, createdAt: -1, _id: -1 });
+blogSchema.index({ isDeleted: 1, status: 1, popularityScore: -1, createdAt: -1, _id: -1 });
+blogSchema.index({ isDeleted: 1, status: 1, category: 1, createdAt: -1, _id: -1 }); 
+blogSchema.index({ isDeleted: 1, status: 1, tags: 1, createdAt: -1, _id: -1 });
+blogSchema.index({ createdBy: 1, isDeleted: 1, createdAt: -1, _id: -1 });
 blogSchema.index({ isDeleted: 1, heading: "text", content: "text" }, {weights: {heading:2, content:1}});
-blogSchema.index({ isDeleted: 1, status: 1 });
 
 const Blog = mongoose.model<IBlog>("Blog", blogSchema);
 

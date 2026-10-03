@@ -27,6 +27,9 @@ const decodeCursor = (cursor: string): Cursor => {
     return {
       createdAt: parsed.createdAt,
       id: parsed.id,
+      ...(typeof parsed.popularityScore === "number" && {
+        popularityScore: parsed.popularityScore,
+      }),
     };
   } catch {
     throw new AppError("Invalid Cursor", 400);

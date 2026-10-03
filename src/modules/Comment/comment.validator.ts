@@ -35,6 +35,7 @@ export const updateCommentSchema = z.object({
 // Pagination (for get)
 export const paginationSchema = z.object({
   query: z.object({
+    cursor: z.string().optional(),
     page: z.string().optional(),
     limit: z.string().optional(),
   }),

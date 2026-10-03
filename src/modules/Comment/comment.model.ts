@@ -22,8 +22,8 @@ const commentSchema = new Schema<IComment> (
 )
 
 commentSchema.index({ isDeleted: 1 });
-commentSchema.index({ blogId: 1, createdAt: -1 });
-commentSchema.index({ parentCommentId: 1, createdAt: 1 });
+commentSchema.index({ blogId: 1, parentCommentId: 1, isDeleted: 1, createdAt: -1, _id: -1 });
+commentSchema.index({ parentCommentId: 1, isDeleted: 1, createdAt: 1, _id: 1 });
 commentSchema.index({ createdBy: 1 });
 
 const Comment = mongoose.model<IComment>("Comment", commentSchema);

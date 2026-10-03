@@ -85,3 +85,9 @@ k6.zip
 results/
 users.json
 blogs.json
+
+
+#==========================
+# Scripts for testing
+#==========================
+scripts/

@@ -5,10 +5,16 @@ function parseCursorPagination(query: Request["query"]): {
   cursor?: string;
   limit: number;
 } {
-  const limit = Math.min(100, parseInt(str(query.limit) || "10", 10) || 10);
+  const requestedLimit = parseInt(str(query.limit) || "10", 10) || 10;
+
+  const limit = Math.min(100, Math.max(1, requestedLimit));
+
   const cursor = query.cursor ? str(query.cursor) : undefined;
 
-  return { limit, cursor };
+  return {
+    limit,
+    cursor,
+  };
 }
 
 export default parseCursorPagination;

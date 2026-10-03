@@ -24,6 +24,7 @@ const userSchema = new Schema<IUser>(
 );
 
 userSchema.index({email:1},{unique:true});
+userSchema.index({isDeleted: 1,createdAt: -1,_id: -1,});
 
 const User = mongoose.model<IUser>("User", userSchema);
 export default User;

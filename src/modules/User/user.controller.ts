@@ -5,6 +5,7 @@ import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
 import asyncHandler from "../../utils/asyncHandler";
+import parseCursorPagination from "../../utils/Cursor/parseCursor";
 
 export const userController = {
   createuser: asyncHandler (async (req: Request, res: Response) => {
@@ -24,19 +25,19 @@ export const userController = {
   }),
 
   getalluser: asyncHandler (async (req: Request, res: Response) => {
-      const page = Math.max(1, parseInt(str(req.query.page) || "1", 10) || 1);
-      const limit = Math.min(
-        100,
-        parseInt(str(req.query.limit) || "10", 10) || 10,
-      );
+      const {cursor, limit} = parseCursorPagination(req.query);
 
-      const result = await userService.findAllUser(page, limit);
+      const result = await userService.findAllUser(cursor, limit);
 
       res.status(200).json({
         success: true,
         message: "users fetched successfully",
         data: result.sanitizedData,
-        total: result.total,
+        pagination: {
+          limit: result.limit,
+          hasNextPage: result.hasNextPage,
+          nextCursor: result.nextCursor,
+        }
       });
   }),
 

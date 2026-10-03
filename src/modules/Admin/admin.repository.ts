@@ -1,5 +1,6 @@
 import Admin from "./admin.model";
 import { IAdmin } from "./admin.interface";
+import { Cursor } from "../../types/cursor.types";
 
 export const adminRepository = {
   create(data: Partial<IAdmin>) {
@@ -30,15 +31,24 @@ export const adminRepository = {
     return Admin.findOne({ email, isDeleted: false });
   },
 
-  findAll(skip: number, limit: number) {
-    return Admin.find({ isDeleted: false })
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 });
-  },
+  findAll(cursor: Cursor | null = null, limit: number) {
+    const filter: any = {isdeleted : false};
 
-  count() {
-    return Admin.countDocuments({ isDeleted: false });
+    if(cursor){
+      filter.$or = [
+        {
+          createdAt: {
+            $lt: new Date(cursor.createdAt),
+          }
+        },
+        {
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: cursor.id }
+        }
+      ]
+    }
+
+    return Admin.find(filter).sort({ createdAt:-1, _id:-1 }).limit(limit);
   },
 
   update(id: string, data: Partial<IAdmin>) {

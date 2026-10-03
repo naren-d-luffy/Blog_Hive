@@ -65,7 +65,7 @@ export const userService = {
     let nextCursor: string | null = null;
 
     if (hasNextPage) {
-      const lastUser = users[users.length - 1];
+      const lastUser = users.at(-1)!;
 
       nextCursor = encodeCursor({
         createdAt: lastUser.createdAt.toISOString(),

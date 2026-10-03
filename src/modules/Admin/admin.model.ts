@@ -23,6 +23,7 @@ const adminSchema = new Schema<IAdmin>(
 );
 
 adminSchema.index({email:1},{unique:true});
+adminSchema.index({isDeletedAt:1, createdAt:-1, _id:-1})
 
 const Admin = mongoose.model<IAdmin>("Admin", adminSchema);
 export default Admin;

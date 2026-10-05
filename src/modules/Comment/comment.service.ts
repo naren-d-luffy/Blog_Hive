@@ -5,15 +5,17 @@ import commentRepository from "./comment.repository";
 import { blogService } from "../Blog/blog.service";
 import { IComment } from "./comment.interface";
 import { redisClient } from "../../config/redis.config";
+import { decodeCursor, encodeCursor } from "../../utils/Cursor/cursor";
+import type { CursorPaginationResult } from "../../types/cursor.types";
 
-// Types
-export interface PaginatedResult<T> {
-  data: T[];
-  page: number;
-  limit: number;
-  total?: number;
-  hasNextPage: boolean;
-}
+const deleteCacheByPatterns = async (patterns: string[]) => {
+  for (const pattern of patterns) {
+    const keys = await redisClient.keys(pattern);
+    if (keys.length > 0) {
+      await redisClient.del(...keys);
+    }
+  }
+};
 
 // Service
 export const commentService = {
@@ -32,20 +34,6 @@ export const commentService = {
       reportCount: comment.reportCount,
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt,
-    };
-  },
-
-  //Pagination helper
-  buildPagination<T>(
-    data: T[],
-    page: number,
-    limit: number,
-  ): PaginatedResult<T> {
-    return {
-      data,
-      page,
-      limit,
-      hasNextPage: data.length === limit,
     };
   },
 
@@ -88,62 +76,99 @@ export const commentService = {
       await blogService.attachComment(blogId, newComment._id.toString());
     } else {
       await commentRepository.incrementReplyCount(parentCommentId, 1);
+      await deleteCacheByPatterns([`replies:${parentCommentId}:*`]);
     }
 
-    await redisClient.del(`comments:${blogId}:*`);
+    await deleteCacheByPatterns([`comments:${blogId}:*`]);
 
     return this.sanitize(newComment);
   },
 
   //Get Root Comments
-  async getComments(blogId: string, page = 1, limit = 10) {
+  async getComments(blogId: string, cursor: string | undefined, limit: number) {
     checkId(blogId);
 
-    const skip = (page - 1) * limit;
-    const key = `comments:${blogId}:${page}:${limit}`;
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    const cacheKey = `comments:${blogId}:cursor:${cursor ?? "initial"}:limit:${limit}`;
 
-    const cached = await redisClient.get(key);
+    const cached = await redisClient.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
 
-    const comments = await commentRepository.getAllComments(
+    const data = await commentRepository.getAllComments(
       blogId,
-      skip,
-      limit,
+      decodedCursor,
+      limit + 1,
     );
 
-    const result = this.buildPagination(
-      comments.map((c) => this.sanitize(c)!),
-      page,
-      limit,
-    );
+    const hasNextPage = data.length > limit;
+    const comments = hasNextPage ? data.slice(0, limit) : data;
 
-    await redisClient.set(key, JSON.stringify(result), "EX",60);
+    const sanitizedData = comments.map((c) => this.sanitize(c)!);
+
+    let nextCursor: string | null = null;
+
+    if (hasNextPage) {
+      const lastComment = comments.at(-1)!;
+      nextCursor = encodeCursor({
+        createdAt: lastComment.createdAt.toISOString(),
+        id: lastComment._id.toString(),
+      });
+    }
+
+    const result = {
+      sanitizedData,
+      limit,
+      hasNextPage,
+      nextCursor,
+    };
+
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
   //Get Replies
-  async getReplies(commentId: string, page = 1, limit = 10) {
+  async getReplies(commentId: string, cursor: string | undefined, limit: number) {
     checkId(commentId);
 
-    const skip = (page - 1) * limit;
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    const cacheKey = `replies:${commentId}:cursor:${cursor ?? "initial"}:limit:${limit}`;
 
-    const key = `replies:${commentId}:${page}:${limit}`;
-    const cached = await redisClient.get(key);
+    const cached = await redisClient.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
 
-    const replies = await commentRepository.getReplies(commentId, skip, limit);
-
-    const result = this.buildPagination(
-      replies.map((r) => this.sanitize(r)!),
-      page,
-      limit,
+    const data = await commentRepository.getReplies(
+      commentId,
+      decodedCursor,
+      limit + 1,
     );
 
-    await redisClient.set(key, JSON.stringify(result), "EX",60);
+    const hasNextPage = data.length > limit;
+    const replies = hasNextPage ? data.slice(0, limit) : data;
+
+    const sanitizedData = replies.map((r) => this.sanitize(r)!);
+
+    let nextCursor: string | null = null;
+
+    if (hasNextPage) {
+      const lastReply = replies.at(-1)!;
+      nextCursor = encodeCursor({
+        createdAt: lastReply.createdAt.toISOString(),
+        id: lastReply._id.toString(),
+      });
+    }
+
+    const result = {
+      sanitizedData,
+      limit,
+      hasNextPage,
+      nextCursor,
+    };
+
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
@@ -164,7 +189,11 @@ export const commentService = {
       updatedBy: new mongoose.Types.ObjectId(userId),
     });
 
-    await redisClient.del(`replies:${commentId}:*`);
+    await deleteCacheByPatterns([
+      `replies:${commentId}:*`,
+      `comments:${existing.blogId}:*`,
+      ...(existing.parentCommentId ? [`replies:${existing.parentCommentId}:*`] : []),
+    ]);
 
     return this.sanitize(updated);
   },
@@ -193,7 +222,11 @@ export const commentService = {
       );
     }
 
-    await redisClient.del(`replies:${commentId}:*`);
+    await deleteCacheByPatterns([
+      `replies:${commentId}:*`,
+      `comments:${existing.blogId}:*`,
+      ...(existing.parentCommentId ? [`replies:${existing.parentCommentId}:*`] : []),
+    ]);
 
     return { id: commentId, deleted: true };
   },

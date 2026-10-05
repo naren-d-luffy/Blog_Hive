@@ -8,6 +8,8 @@ import { tokenService } from "../Token/token.service";
 import { forgotPasswordSchema } from "../Token/token.validator";
 import { TokenType } from "../Token/token.interface";
 import asyncHandler from "../../utils/asyncHandler";
+import { decodeCursor } from "../../utils/Cursor/cursor";
+import parseCursorPagination from "../../utils/Cursor/parseCursor";
 
 
 export const adminController = {
@@ -41,20 +43,19 @@ export const adminController = {
   }),
 
   getallAdmin: asyncHandler (async (req: Request, res: Response) => {
-      const page = Math.max(1, parseInt(str(req.query.page) || "1", 10) || 1);
-      const limit = Math.min(
-        100,
-        parseInt(str(req.query.limit) || "10", 10) || 10,
-      );
+      const {cursor, limit} = parseCursorPagination(req.query)
 
-      const result = await adminService.findAllAdmin(page, limit);
-      console.log(result);
+      const result = await adminService.findAllAdmin(cursor, limit);
 
       res.status(200).json({
         success: true,
         message: "Admins fetched successfully",
         data: result.sanitizedData,
-        total: result.total,
+        pagination: {
+          limit: result.limit,
+          hasNextPage: result.hasNextPage,
+          nextCursor: result.nextCursor,
+        }
       });
   }),
 

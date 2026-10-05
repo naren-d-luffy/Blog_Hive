@@ -9,7 +9,7 @@ beforeAll(async () => {
   const uri = mongoServer.getUri();
 
   await mongoose.connect(uri);
-});
+}, 60000);
 
 afterEach(async () => {
   const collections = mongoose.connection.collections;
@@ -21,5 +21,7 @@ afterEach(async () => {
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await mongoServer.stop();
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
 });

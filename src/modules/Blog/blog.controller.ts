@@ -4,16 +4,7 @@ import { createBlogSchema, updateBlogSchema } from "./blog.validation";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
 import asyncHandler from "../../utils/asyncHandler";
-
-// Helpers
-function parsePagination(query: Request["query"]): {
-  page: number;
-  limit: number;
-} {
-  const page = Math.max(1, parseInt(str(query.page) || "1", 10) || 1);
-  const limit = Math.min(100, parseInt(str(query.limit) || "10", 10) || 10);
-  return { page, limit };
-}
+import parseCursorPagination from "../../utils/Cursor/parseCursor";
 
 // Controller
 export const blogController = {
@@ -37,22 +28,32 @@ export const blogController = {
   }),
 
   getAllBlogs: asyncHandler(async (req: Request, res: Response) => {
-    const { page, limit } = parsePagination(req.query);
-    const result = await blogService.getAllBlogs(page, limit);
+    const { cursor, limit } = parseCursorPagination(req.query);
+    const result = await blogService.getAllBlogs(cursor, limit);
     return res.status(200).json({
       success: true,
       message: "Blogs fetched successfully",
-      ...result,
+      data: result.sanitizedData,
+      pagination: {
+        limit: result.limit,
+        hasNextPage: result.hasNextPage,
+        nextCursor: result.nextCursor,
+      },
     });
   }),
 
   getAllByPopularity: asyncHandler(async (req: Request, res: Response) => {
-    const { page, limit } = parsePagination(req.query);
-    const result = await blogService.getAllByPopularity(page, limit);
+    const { cursor, limit } = parseCursorPagination(req.query);
+    const result = await blogService.getAllByPopularity(cursor, limit);
     return res.status(200).json({
       success: true,
       message: "Trending blogs fetched successfully",
-      ...result,
+      data: result.sanitizedData,
+      pagination: {
+        limit: result.limit,
+        hasNextPage: result.hasNextPage,
+        nextCursor: result.nextCursor,
+      },
     });
   }),
 
@@ -60,12 +61,17 @@ export const blogController = {
     const category = str(req.params.category).trim();
     if (!category) throw new AppError("Category is required", 400);
 
-    const { page, limit } = parsePagination(req.query);
-    const result = await blogService.getAllByCategory(category, page, limit);
+    const { cursor, limit } = parseCursorPagination(req.query);
+    const result = await blogService.getAllByCategory(category, cursor, limit);
     return res.status(200).json({
       success: true,
       message: `Blogs for category '${category}' fetched successfully`,
-      ...result,
+      data: result.sanitizedData,
+      pagination: {
+        limit: result.limit,
+        hasNextPage: result.hasNextPage,
+        nextCursor: result.nextCursor,
+      },
     });
   }),
 
@@ -73,26 +79,36 @@ export const blogController = {
     const tag = str(req.params.tag).trim();
     if (!tag) throw new AppError("Tag is required", 400);
 
-    const { page, limit } = parsePagination(req.query);
-    const result = await blogService.getAllByTag(tag, page, limit);
+    const { cursor, limit } = parseCursorPagination(req.query);
+    const result = await blogService.getAllByTag(tag, cursor, limit);
     return res.status(200).json({
       success: true,
       message: `Blogs for tag '${tag}' fetched successfully`,
-      ...result,
+      data: result.sanitizedData,
+      pagination: {
+        limit: result.limit,
+        hasNextPage: result.hasNextPage,
+        nextCursor: result.nextCursor,
+      },
     });
   }),
 
   getAllByAuthor: asyncHandler(async (req: Request, res: Response) => {
-    const { page, limit } = parsePagination(req.query);
+    const { cursor, limit } = parseCursorPagination(req.query);
     const result = await blogService.getAllByAuthor(
       str(req.params.userId),
-      page,
+      cursor,
       limit,
     );
     return res.status(200).json({
       success: true,
       message: "Author blogs fetched successfully",
-      ...result,
+      data: result.sanitizedData,
+      pagination: {
+        limit: result.limit,
+        hasNextPage: result.hasNextPage,
+        nextCursor: result.nextCursor,
+      },
     });
   }),
 
@@ -104,13 +120,19 @@ export const blogController = {
         message: "Search query must be at least 2 characters",
       });
     }
-    const { page, limit } = parsePagination(req.query);
-    const result = await blogService.searchBlogs(query, page, limit);
+    const { cursor, limit } = parseCursorPagination(req.query);
+    const page = req.query.page ? parseInt(str(req.query.page), 10) : undefined;
+    const result = await blogService.searchBlogs(query, { cursor, page }, limit);
     return res.status(200).json({
       success: true,
       message: "Search results fetched successfully",
       query,
-      ...result,
+      data: result.sanitizedData,
+      pagination: {
+        limit: result.limit,
+        hasNextPage: result.hasNextPage,
+        nextCursor: result.nextCursor,
+      },
     });
   }),
 

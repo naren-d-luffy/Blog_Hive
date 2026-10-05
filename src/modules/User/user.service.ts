@@ -11,6 +11,7 @@ import { redisClient } from "../../config/redis.config";
 import { generateToken, hashToken } from "../../utils/generateToken";
 import { tokenService } from "../Token/token.service";
 import { TokenType } from "../Token/token.interface";
+import { decodeCursor, encodeCursor } from "../../utils/Cursor/cursor";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
 const FAILURE_COUNT = env.LOGIN_FAILURE_COUNT;
@@ -44,27 +45,39 @@ export const userService = {
     return this.sanitizeUser(newUser);
   },
 
-  async findAllUser(page: number, limit: number) {
-    const cacheKey = `user:${page}:${limit}`;
+  async findAllUser(cursor: string | undefined, limit: number) {
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+
+    const cacheKey = `users:cursor:${cursor ?? "initial"}:limit:${limit}`;
     const cached = await redisClient.get(cacheKey);
+
     if (cached) {
       return JSON.parse(cached);
     }
 
-    const skip = (page - 1) * limit;
+    const data = await userRepository.findAll(decodedCursor, limit + 1);
 
-    const [data, total] = await Promise.all([
-      userRepository.findAll(skip, limit),
-      userRepository.count(),
-    ]);
-    const sanitizedData = data.map((user) => this.sanitizeUser(user));
+    const hasNextPage = data.length > limit;
+    const users = hasNextPage ? data.slice(0, limit) : data;
+
+    const sanitizedData = users.map((user) => this.sanitizeUser(user));
+
+    let nextCursor: string | null = null;
+
+    if (hasNextPage) {
+      const lastUser = users.at(-1)!;
+
+      nextCursor = encodeCursor({
+        createdAt: lastUser.createdAt.toISOString(),
+        id: lastUser._id.toString(),
+      });
+    }
 
     const result = {
       sanitizedData,
-      total,
-      page,
       limit,
-      totalPage: Math.ceil(total / limit),
+      hasNextPage,
+      nextCursor,
     };
 
     await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);

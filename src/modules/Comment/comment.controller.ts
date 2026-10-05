@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { commentService } from "./comment.service";
 import { str } from "../../utils/toString";
 import asyncHandler from "../../utils/asyncHandler";
+import parseCursorPagination from "../../utils/Cursor/parseCursor";
 
 export const commentController = {
   createComment: asyncHandler (async (req: Request, res: Response) => {
@@ -26,29 +27,37 @@ export const commentController = {
 
   getComments: asyncHandler (async (req: Request, res: Response) => {
       const blogId = str(req.params.blogId);
+      const { cursor, limit } = parseCursorPagination(req.query);
 
-      const page = Number(req.query.page) || 1;
-      const limit = Number(req.query.limit) || 10;
-
-      const result = await commentService.getComments(blogId, page, limit);
+      const result = await commentService.getComments(blogId, cursor, limit);
 
       res.status(200).json({
         success: true,
-        data: result,
+        message: "Comments fetched successfully",
+        data: result.sanitizedData,
+        pagination: {
+          limit: result.limit,
+          hasNextPage: result.hasNextPage,
+          nextCursor: result.nextCursor,
+        },
       });
   }),
 
   getReplies: asyncHandler (async (req: Request, res: Response) => {
       const commentId = str(req.params.commentId);
+      const { cursor, limit } = parseCursorPagination(req.query);
 
-      const page = Number(req.query.page) || 1;
-      const limit = Number(req.query.limit) || 10;
-
-      const result = await commentService.getReplies(commentId, page, limit);
+      const result = await commentService.getReplies(commentId, cursor, limit);
 
       res.status(200).json({
         success: true,
-        data: result,
+        message: "Replies fetched successfully",
+        data: result.sanitizedData,
+        pagination: {
+          limit: result.limit,
+          hasNextPage: result.hasNextPage,
+          nextCursor: result.nextCursor,
+        },
       });
   }),
 

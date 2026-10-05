@@ -1,5 +1,5 @@
 /**
- * Benchmark 3 — GET /api/v1/blog/search?q=<term>&page=1&limit=10
+ * Benchmark 3 — GET /api/v1/blog/search?q=<term>&limit=10
  *
  * Covers: Read · Redis cache (30s TTL, shorter than other endpoints) ·
  *         Pagination · MongoDB $text index with $meta textScore sort ·
@@ -46,11 +46,10 @@ export const options = {
 export default function () {
   // Pick a random search term per iteration to stress the cache and DB
   const term  = SEARCH_TERMS[Math.floor(Math.random() * SEARCH_TERMS.length)];
-  const page  = Math.floor(Math.random() * 3) + 1;
   const limit = 10;
 
   const res = http.get(
-    `${BASE_URL}/api/v1/blog/search?q=${term}&page=${page}&limit=${limit}`,
+    `${BASE_URL}/api/v1/blog/search?q=${term}&limit=${limit}`,
     { tags: { type: "read", endpoint: "search" } },
   );
 

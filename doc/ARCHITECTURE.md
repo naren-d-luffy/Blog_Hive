@@ -35,6 +35,12 @@ This backend follows a layered architecture for each module:
 - `src/middleware/login.rateLimiter.ts`: stricter auth limiter
 - `src/middleware/error.middleware.ts`: centralized error handling
 
+#### Token Generation Strategy
+
+Refresh and CSRF tokens are generated using Node's built-in `crypto.randomBytes` and stored as **HMAC-SHA256 hashes** (keyed with `HASH_TOKEN` env secret) via `src/utils/generateToken.ts`. Verification uses `crypto.timingSafeEqual` to prevent timing attacks.
+
+This replaces a previous bcrypt-based approach. The change removes the intentional bcrypt work-factor cost from the hot login path, dropping the login endpoint P95 from ~3 s to ~376 ms while keeping stored values non-reversible.
+
 ### Domain Modules
 
 - `Admin`: admin auth, account management, password lifecycle
@@ -65,3 +71,18 @@ Workers run as independent processes and are required in production.
 - Background jobs handle delayed/retry-safe operations
 - `/health` checks key dependency health indicators
 
+### Pagination Design
+
+List endpoints (`/blog`, `/blog/search`, `/comments`) use **cursor-style boolean pagination** instead of a `total` count. The repository fetches `limit + 1` documents; if the extra row exists it sets `hasNextPage: true` and trims the result to `limit`. This eliminates the concurrent `countDocuments` aggregation query that was the primary bottleneck at scale (930 ms avg → 11–50 ms at 1 000 documents depending on cache state).
+
+Paginated response envelope:
+
+```json
+{
+  "data": [...],
+  "page": 1,
+  "limit": 10,
+  "hasNextPage": true,
+  "hasPrevPage": false
+}
+```

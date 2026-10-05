@@ -1,8 +1,8 @@
 /**
- * Benchmark 2 — GET /api/v1/blog?page=1&limit=10
+ * Benchmark 2 — GET /api/v1/blog?limit=10
  *
  * Covers: Read · Redis cache (miss on first req, hit on subsequent) ·
- *         Pagination (skip/limit) · MongoDB compound index scan ·
+ *         Cursor Pagination · MongoDB compound index scan ·
  *         Global token-bucket rate limiter
  *
  * What to watch:
@@ -13,12 +13,11 @@
  *     occasionally slow (index not being used, or lock contention).
  *   - 429 responses = global rate limiter firing. Raise
  *     GLOBAL_BUCKET_CAPACITY in .env before load testing.
- *   - Run with ?page=1&limit=10 (warm cache) AND ?page=5&limit=10
- *     (usually a cache miss) to see pagination cold-path cost.
+ *   - Run with ?limit=10 (warm cache) and with a cursor to see pagination cold-path cost.
  *
  * Scenarios:
- *   warm  – hits the same cache key repeatedly (page 1)
- *   cold  – rotates through page 1-10 to force frequent cache misses
+ *   warm  – hits the same cache key repeatedly (first page)
+ *   cold  – simulates cursor pagination to force cache misses
  *
  * Run:
  *   npm run bench k6/02_get_blogs.js
@@ -35,7 +34,7 @@ const readErrors  = new Rate("blog_list_error_rate");
 
 export const options = {
   scenarios: {
-    // Scenario A: warm cache — same page 1 key every time
+    // Scenario A: warm cache — same first page key every time
     warm_cache: {
       executor:   "ramping-vus",
       stages:     STAGES,
@@ -50,12 +49,10 @@ export const options = {
 };
 
 export default function () {
-  // Rotate across pages 1-5 — mix of cache hits and misses
-  const page  = Math.floor(Math.random() * 5) + 1;
   const limit = 10;
 
   const res = http.get(
-    `${BASE_URL}/api/v1/blog?page=${page}&limit=${limit}`,
+    `${BASE_URL}/api/v1/blog?limit=${limit}`,
     { tags: { type: "read", endpoint: "blog_list" } },
   );
 
@@ -68,7 +65,7 @@ export default function () {
     "blogs: has pagination":    (r) => {
       try {
         const b = JSON.parse(r.body);
-        return b.hasNextPage !== undefined && b.hasPrevPage !== undefined;
+        return b.hasNextPage !== undefined;
       }
       catch { return false; }
     },

@@ -1,25 +1,35 @@
 import env from "../config/env.config";
+import asyncHandler from "../utils/asyncHandler";
 import { Request, Response, NextFunction } from "express";
+import AppError from "../utils/AppError";
 import { createRateLimiter } from "../service/rateLimiter.service";
 
 const GLOBAL_BUCKET_CAPACITY = env.GLOBAL_BUCKET_CAPACITY;
 const GLOBAL_BUCKET_REFILL = env.GLOBAL_BUCKET_REFILLRATE;
 
-const globalLimiter = createRateLimiter(GLOBAL_BUCKET_CAPACITY,GLOBAL_BUCKET_REFILL);
+const globalLimiter = createRateLimiter(
+  GLOBAL_BUCKET_CAPACITY,
+  GLOBAL_BUCKET_REFILL,
+);
 
-export const rateLimiter = async (req:Request, res:Response, next:NextFunction) => {
-  const key = `rate:global:${req.ip}`;
+export const rateLimiter = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    let result: { allowed:boolean; tokens:number };
+    try {
+      const key = `rate:global:${req.ip}`;
+      result = await globalLimiter.consume(key);
+    } catch (error) {
+      console.error("Global rate limiter unavailable, failing open", error);
+      return next();
+    }
 
-  const { allowed, tokens } = await globalLimiter.consume(key);
+    res.setHeader("X-RateLimit-Remaining", Math.floor(result.tokens));
 
-  res.setHeader("X-RateLimit-Remaining", tokens);
+    if (!result.allowed) {
+      const retryAfter = Math.ceil((1-result.tokens)/GLOBAL_BUCKET_REFILL)
+      res.setHeader("Retry-After", Math.max(retryAfter,1));
+      throw new AppError("Too many requests",429)
+    }
 
-  if (!allowed) {
-    return res.status(429).json({
-      success: false,
-      message: "Too many requests",
-    });
-  }
-
-  next();
-};
+    next();
+  });

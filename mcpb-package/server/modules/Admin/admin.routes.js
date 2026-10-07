@@ -1,0 +1,24 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const admin_controller_1 = require("./admin.controller");
+const auth_middleware_1 = require("../../middleware/auth.middleware");
+const login_rateLimiter_1 = require("../../middleware/login.rateLimiter");
+const validateCsrf_1 = require("../../middleware/validateCsrf");
+const router = express_1.default.Router();
+router.post('/', admin_controller_1.adminController.createAdmin);
+router.post('/login', login_rateLimiter_1.loginRateLimiter, admin_controller_1.adminController.login);
+router.post('/refresh', validateCsrf_1.validateCsrf, admin_controller_1.adminController.refreshToken);
+router.post('/forgot-password', admin_controller_1.adminController.forgotPassword);
+router.patch('/reset-password', admin_controller_1.adminController.resetPassword);
+router.use(auth_middleware_1.Authenticate, (0, auth_middleware_1.Authorize)("admin"));
+router.get('/', admin_controller_1.adminController.getallAdmin);
+router.get('/me', admin_controller_1.adminController.getCurrentAdmin);
+router.post('/logout', validateCsrf_1.validateCsrf, admin_controller_1.adminController.logout);
+router.post('/change-password', admin_controller_1.adminController.changePassword);
+router.patch('/status/:id', admin_controller_1.adminController.updateStatus);
+router.delete('/delete/:id', admin_controller_1.adminController.softDelete);
+exports.default = router;

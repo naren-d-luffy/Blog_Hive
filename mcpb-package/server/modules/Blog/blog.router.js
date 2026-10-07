@@ -1,0 +1,24 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const blog_controller_1 = require("./blog.controller");
+const auth_middleware_1 = require("../../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.get("/", blog_controller_1.blogController.getAllBlogs);
+router.get("/trending", blog_controller_1.blogController.getAllByPopularity);
+router.get("/search", blog_controller_1.blogController.searchBlogs);
+router.get("/category/:category", blog_controller_1.blogController.getAllByCategory);
+router.get("/tag/:tag", blog_controller_1.blogController.getAllByTag);
+router.get("/author/:userId", blog_controller_1.blogController.getAllByAuthor);
+router.get("/slug/:slug", blog_controller_1.blogController.getBySlug);
+router.get("/:id", blog_controller_1.blogController.getById);
+router.post("/:id/view", blog_controller_1.blogController.trackView);
+// ── Protected routes (requires authentication) 
+router.use(auth_middleware_1.Authenticate, (0, auth_middleware_1.Authorize)("admin", "user"));
+router.post("/:id/report", blog_controller_1.blogController.reportBlog);
+router.post("/", blog_controller_1.blogController.createBlog);
+router.patch("/:id", blog_controller_1.blogController.updateBlog);
+router.delete("/:id", blog_controller_1.blogController.deleteBlog);
+router.post("/:id/like", blog_controller_1.blogController.likeBlog);
+router.delete("/:id/like", blog_controller_1.blogController.unlikeBlog);
+exports.default = router;

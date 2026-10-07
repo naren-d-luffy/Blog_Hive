@@ -1,0 +1,31 @@
+{
+  "manifest_version": "0.3",
+  "name": "blog-mcp",
+  "display_name": "Blog MCP",
+  "version": "1.0.0",
+  "description": "Local MCP server for the Blog backend.",
+  "author": {
+    "name": "RamNaren"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "server/mcp/server.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/mcp/server.js"
+      ],
+      "env": {
+        "MCP_ENV_FILE": "${user_config.env_file}"
+      }
+    }
+  },
+  "user_config": {
+    "env_file": {
+      "type": "file",
+      "title": "Environment file",
+      "description": "Select the .env file used by the Blog MCP server.",
+      "required": true
+    }
+  }
+}

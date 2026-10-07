@@ -1,7 +1,10 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
-dotenv.config({ quiet: true });
+dotenv.config({
+  path: process.env.MCP_ENV_FILE || ".env",
+  quiet: true,
+});
 
 const envSchema = z.object({
   PORT: z.string().default("3000").transform(Number),

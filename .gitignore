@@ -91,3 +91,10 @@ blogs.json
 # Scripts for testing
 #==========================
 scripts/
+
+#==========================
+# MCP test client (local only)
+#==========================
+mcp-client.ts
+tsconfig.mcp-client.json
+dist-mcp-client/

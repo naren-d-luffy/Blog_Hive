@@ -4,9 +4,14 @@ export const mcpConfig = {
 
   transport: "stdio" as const,
 
-  capabilities: { tools: {} },
+  capabilities: {
+    tools: {},
+    resources: {},
+    // prompts: {},   // ← uncomment when prompt definitions are added
+  },
 
-  description: "MCP server that exposes Blog and Comment management tools for the Blog_Back API."
+  description:
+    "MCP server that exposes Blog and Comment management tools and resources for the Blog_Back API.",
 } as const;
 
 export type McpTransport = typeof mcpConfig.transport;

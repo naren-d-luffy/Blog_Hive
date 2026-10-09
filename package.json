@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn src/server.ts",
     "mcp:start": "ts-node src/mcp/server.ts",
     "mcp:dev": "ts-node-dev --respawn src/mcp/server.ts",
+    "mcp:client": "ts-node --project tsconfig.mcp-client.json mcp-client.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "worker:blog": "ts-node src/queues/workers/blog.worker.ts",

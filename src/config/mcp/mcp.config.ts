@@ -7,7 +7,7 @@ export const mcpConfig = {
   capabilities: {
     tools: {},
     resources: {},
-    // prompts: {},   // ← uncomment when prompt definitions are added
+    prompts: {},
   },
 
   description:

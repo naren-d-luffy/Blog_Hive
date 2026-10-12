@@ -42,7 +42,7 @@ function printBanner(): void {
   console.log("╚══════════════════════════════════════════════════════════╝\n");
 }
 
-function printHelp(tools: string[]): void {
+function printHelp(tools: string[], prompts: string[] = []): void {
   console.log("\nAvailable commands:");
   console.log("  list              — List all registered tools");
   console.log("  call <name>       — Call a specific tool (you will be prompted for args)");
@@ -51,10 +51,18 @@ function printHelp(tools: string[]): void {
   console.log("                      e.g. read blog://catalogue");
   console.log("                           read blog://post/6630f1e2c1234abc567890ef");
   console.log("                           read comment://blog/6630f1e2c1234abc567890ef");
+  console.log("  prompts           — List all registered prompt templates");
+  console.log("  prompt <name>     — Fetch and render a prompt template with arguments");
+  console.log("                      e.g. prompt summarize-blog");
+  console.log("                           prompt draft-blog-post");
   console.log("  help              — Show this help");
   console.log("  exit              — Quit\n");
   console.log(`Registered tools (${tools.length}):`);
   tools.forEach((t, i) => console.log(`  ${String(i + 1).padStart(2)}. ${t}`));
+  if (prompts.length > 0) {
+    console.log(`\nRegistered prompts (${prompts.length}):`);
+    prompts.forEach((p, i) => console.log(`  ${String(i + 1).padStart(2)}. ${p}`));
+  }
   console.log();
 }
 
@@ -108,8 +116,9 @@ async function main(): Promise<void> {
   printBanner();
   console.log("[client] Spawning MCP server…");
 
+  const isWindows = process.platform === "win32";
   const transport = new StdioClientTransport({
-    command: "npx",
+    command: isWindows ? "npx.cmd" : "npx",
     args: ["ts-node", "src/mcp/server.ts"],
     env: { ...process.env } as Record<string, string>,
   });
@@ -179,8 +188,33 @@ async function main(): Promise<void> {
     console.error("[client] Could not fetch resource list:", err);
   }
 
+  // ── Fetch prompt list at startup ───────────────────────────────────────────
+  let promptNames: string[] = [];
+  try {
+    const { prompts } = await client.listPrompts();
+    promptNames = prompts.map((p) => p.name);
+
+    if (prompts.length > 0) {
+      console.log("─── Prompt Catalogue " + "─".repeat(43));
+      prompts.forEach((p) => {
+        console.log(`\n  • ${p.name}`);
+        if (p.description) {
+          console.log(`    ${p.description}`);
+        }
+        if (p.arguments && p.arguments.length > 0) {
+          console.log(
+            `    Arguments: ${p.arguments.map((a) => `${a.name}${a.required ? " (required)" : ""}`).join(", ")}`,
+          );
+        }
+      });
+      console.log("\n" + "─".repeat(64));
+    }
+  } catch (err) {
+    console.error("[client] Could not fetch prompt list:", err);
+  }
+
   // ─── REPL ───────────────────────────────────────────────────────────────────
-  printHelp(toolNames);
+  printHelp(toolNames, promptNames);
 
   while (true) {
     const input = (await ask("mcp> ")).trim();
@@ -195,7 +229,7 @@ async function main(): Promise<void> {
         try {
           const { tools } = await client.listTools();
           toolNames = tools.map((t) => t.name);
-          printHelp(toolNames);
+          printHelp(toolNames, promptNames);
         } catch (err) {
           console.error("[client] listTools error:", err);
         }
@@ -293,9 +327,79 @@ async function main(): Promise<void> {
         break;
       }
 
+      // ── prompts ─────────────────────────────────────────────────────────────
+      case "prompts": {
+        try {
+          const { prompts } = await client.listPrompts();
+          promptNames = prompts.map((p) => p.name);
+
+          console.log("\n─── Registered Prompts " + "─".repeat(41));
+          if (prompts.length === 0) {
+            console.log("  (none)");
+          } else {
+            prompts.forEach((p, i) => {
+              console.log(`\n  ${String(i + 1).padStart(2)}. ${p.name}`);
+              if (p.description) console.log(`      Description: ${p.description}`);
+              if (p.arguments && p.arguments.length > 0) {
+                console.log("      Arguments:");
+                p.arguments.forEach((arg) => {
+                  console.log(
+                    `        - ${arg.name}${arg.required ? " (required)" : ""}: ${arg.description ?? ""}`,
+                  );
+                });
+              }
+            });
+          }
+          console.log("\n" + "─".repeat(64));
+        } catch (err) {
+          console.error("[client] listPrompts error:", err);
+        }
+        break;
+      }
+
+      // ── prompt <name> ───────────────────────────────────────────────────────
+      case "prompt": {
+        const promptName = rest.join(" ").trim();
+
+        if (!promptName) {
+          console.log('\n[client] Usage: prompt <name>  (e.g. "prompt summarize-blog")\n');
+          break;
+        }
+
+        try {
+          const { prompts } = await client.listPrompts();
+          promptNames = prompts.map((p) => p.name);
+          const def = prompts.find((p) => p.name === promptName);
+
+          if (!def) {
+            console.log(
+              `\n[client] Unknown prompt "${promptName}". Type "prompts" to see available prompts.\n`,
+            );
+            break;
+          }
+
+          let args: Record<string, string> = {};
+          if (def.arguments && def.arguments.length > 0) {
+            console.log(`\nPrompt "${promptName}" accepts arguments:`);
+            def.arguments.forEach((a) => {
+              console.log(`  • ${a.name}${a.required ? " (required)" : ""}: ${a.description ?? ""}`);
+            });
+            const collected = await collectArgs();
+            args = collected as Record<string, string>;
+          }
+
+          console.log(`\n[client] Fetching prompt "${promptName}" with args:`, JSON.stringify(args));
+          const result = await client.getPrompt({ name: promptName, arguments: args });
+          printJson(`Prompt: ${promptName}`, result);
+        } catch (err) {
+          console.error(`\n[client] Get prompt error for "${promptName}":`, err);
+        }
+        break;
+      }
+
       // ── help ─────────────────────────────────────────────────────────────────
       case "help": {
-        printHelp(toolNames);
+        printHelp(toolNames, promptNames);
         break;
       }
 

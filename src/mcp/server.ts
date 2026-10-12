@@ -16,9 +16,9 @@ import {
 } from "./modules/Blog/blog.resources";
 import { commentResourceTemplates } from "./modules/Comment/comment.resources";
 
-// ─── Prompts (reserved for future use) ───────────────────────────────────────
-// import { blogPrompts }    from "./modules/Blog/blog.prompts";
-// import { commentPrompts } from "./modules/Comment/comment.prompts";
+// ─── Prompts ─────────────────────────────────────────────────────────────────
+import { blogPrompts } from "./modules/Blog/blog.prompts";
+import { commentPrompts } from "./modules/Comment/comment.prompts";
 
 // ─── Registration helpers ─────────────────────────────────────────────────────
 
@@ -77,22 +77,30 @@ function registerResources(
   }
 }
 
-// ─── Prompts registration stub ────────────────────────────────────────────────
-// Uncomment and fill in when prompt definitions are ready.
-//
-// function registerPrompts(
-//   server: McpServer,
-//   prompts: ReadonlyArray<{
-//     name: string;
-//     description: string;
-//     argsSchema: ZodRawShape;
-//     handler: (input: any) => Promise<any>;
-//   }>,
-// ): void {
-//   for (const prompt of prompts) {
-//     server.prompt(prompt.name, prompt.description, prompt.argsSchema, prompt.handler);
-//   }
-// }
+// ─── Prompts registration ────────────────────────────────────────────────────
+
+function registerPrompts(
+  server: McpServer,
+  prompts: ReadonlyArray<{
+    name: string;
+    description: string;
+    argsSchema?: ZodRawShape;
+    handler: (input: any) => Promise<any>;
+  }>,
+): void {
+  for (const prompt of prompts) {
+    if (prompt.argsSchema) {
+      server.prompt(
+        prompt.name,
+        prompt.description,
+        prompt.argsSchema as any,
+        prompt.handler,
+      );
+    } else {
+      server.prompt(prompt.name, prompt.description, prompt.handler);
+    }
+  }
+}
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
@@ -132,8 +140,13 @@ async function bootstrap(): Promise<void> {
     `[MCP] Registered ${totalStaticResources} static resources and ${totalTemplateResources} resource templates`,
   );
 
-  // ── Prompts (reserved) ──
-  // registerPrompts(server, [...blogPrompts, ...commentPrompts]);
+  // ── Prompts ──
+  registerPrompts(server, [...blogPrompts, ...commentPrompts] as any);
+
+  const totalPrompts = blogPrompts.length + commentPrompts.length;
+  console.error(
+    `[MCP] Registered ${totalPrompts} prompts (${blogPrompts.length} blog, ${commentPrompts.length} comment)`,
+  );
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -12,15 +12,21 @@
  *   call <name>           — call a tool (you are prompted for args)
  *   resources             — list all registered resources & resource templates
  *   read <uri>            — read a resource by its exact URI
+ *   prompts               — list all registered prompt templates
+ *   prompt <name>         — fetch and render a prompt
+ *   auth <user|admin> [id]— mint and activate a test JWT token
+ *   token <jwt|clear>     — set or clear an access token
+ *   whoami                — display current active user identity
  *   help                  — show this help
  *   exit                  — quit
- *
- * NOTE: This file is intentionally excluded from git (see .gitignore).
  */
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import * as readline from "readline";
+import { generateMcpAccessToken } from "./src/mcp/security/mcp.security.token";
+import { verifyAccessToken } from "./src/auth/auth.core";
+import { Role } from "./src/types/auth.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +61,9 @@ function printHelp(tools: string[], prompts: string[] = []): void {
   console.log("  prompt <name>     — Fetch and render a prompt template with arguments");
   console.log("                      e.g. prompt summarize-blog");
   console.log("                           prompt draft-blog-post");
+  console.log("  auth <role> [id]  — Mint & activate a test token (role: 'user' | 'admin')");
+  console.log("  token <jwt|clear> — Set custom JWT or clear current token");
+  console.log("  whoami            — Display currently active authenticated identity");
   console.log("  help              — Show this help");
   console.log("  exit              — Quit\n");
   console.log(`Registered tools (${tools.length}):`);
@@ -137,18 +146,28 @@ async function main(): Promise<void> {
 
   console.log("[client] Connected to MCP server ✓\n");
 
+  // Active authentication state for client session
+  let activeToken: string | null = process.env.MCP_ACCESS_TOKEN ?? null;
+  if (activeToken) {
+    try {
+      const decoded = verifyAccessToken(activeToken);
+      console.log(`[client] Using environment token as ${decoded.role} (${decoded.id})\n`);
+    } catch {
+      console.log("[client] Notice: Environment token is invalid or expired.\n");
+      activeToken = null;
+    }
+  }
+
   // ── Fetch tool list at startup ──────────────────────────────────────────────
   let toolNames: string[] = [];
   try {
     const { tools } = await client.listTools();
     toolNames = tools.map((t) => t.name);
     console.log(`[client] Server reports ${toolNames.length} tools registered.\n`);
-    // Print the full tool catalogue with descriptions on first connect
     console.log("─── Tool Catalogue " + "─".repeat(45));
     tools.forEach((t) => {
       console.log(`\n  • ${t.name}`);
       if (t.description) {
-        // Wrap description at 70 chars for readability
         const words = t.description.split(" ");
         let line = "    ";
         for (const word of words) {
@@ -224,6 +243,67 @@ async function main(): Promise<void> {
     const [cmd, ...rest] = input.split(/\s+/);
 
     switch (cmd.toLowerCase()) {
+      // ── auth <role> [id] ────────────────────────────────────────────────────
+      case "auth":
+      case "login": {
+        const roleArg = (rest[0] || "user").toLowerCase();
+        if (roleArg !== "user" && roleArg !== "admin") {
+          console.log('\n[client] Invalid role. Usage: auth <user|admin> [mongoId]\n');
+          break;
+        }
+
+        const idArg = rest[1] || "6630f1e2c1234abc567890ef";
+        try {
+          activeToken = generateMcpAccessToken({ id: idArg, role: roleArg as Role });
+          console.log(`\n[client] Activated test token for role="${roleArg}", userId="${idArg}".`);
+          console.log(`[client] Token: ${activeToken.slice(0, 20)}…\n`);
+        } catch (e: any) {
+          console.error(`\n[client] Error generating token: ${e.message}\n`);
+        }
+        break;
+      }
+
+      // ── token <jwt|clear> ───────────────────────────────────────────────────
+      case "token": {
+        const tokenArg = rest.join(" ").trim();
+        if (!tokenArg) {
+          console.log(`\n[client] Current token: ${activeToken ?? "(none - anonymous)"}\n`);
+          break;
+        }
+
+        if (tokenArg.toLowerCase() === "clear") {
+          activeToken = null;
+          console.log("\n[client] Cleared active access token.\n");
+          break;
+        }
+
+        try {
+          const decoded = verifyAccessToken(tokenArg);
+          activeToken = tokenArg;
+          console.log(`\n[client] Token set successfully! Verified as ${decoded.role} (${decoded.id})\n`);
+        } catch (e: any) {
+          console.error(`\n[client] Invalid token: ${e.message}\n`);
+        }
+        break;
+      }
+
+      // ── whoami ──────────────────────────────────────────────────────────────
+      case "whoami": {
+        if (!activeToken) {
+          console.log('\n[client] Anonymous (no token active). Use "auth user" or "auth admin" to authenticate.\n');
+        } else {
+          try {
+            const user = verifyAccessToken(activeToken);
+            console.log(`\n[client] Authenticated user:`);
+            console.log(`  ID:   ${user.id}`);
+            console.log(`  Role: ${user.role}\n`);
+          } catch (e: any) {
+            console.log(`\n[client] Token is invalid or expired: ${e.message}\n`);
+          }
+        }
+        break;
+      }
+
       // ── list ────────────────────────────────────────────────────────────────
       case "list": {
         try {
@@ -263,9 +343,16 @@ async function main(): Promise<void> {
 
         const args = await collectArgs();
         console.log(`\n[client] Calling "${toolName}" with args:`, JSON.stringify(args));
+        if (activeToken) {
+          console.log(`[client] Attaching authorization token from active session.`);
+        }
 
         try {
-          const result = await client.callTool({ name: toolName, arguments: args });
+          const result = await client.callTool({
+            name: toolName,
+            arguments: args,
+            _meta: activeToken ? { token: activeToken } : undefined,
+          });
           printJson(`Result: ${toolName}`, result);
         } catch (err) {
           console.error(`\n[client] Tool call error for "${toolName}":`, err);
@@ -319,7 +406,10 @@ async function main(): Promise<void> {
         console.log(`\n[client] Reading resource: ${uri}`);
 
         try {
-          const result = await client.readResource({ uri });
+          const result = await client.readResource({
+            uri,
+            _meta: activeToken ? { token: activeToken } : undefined,
+          } as any);
           printJson(`Resource: ${uri}`, result);
         } catch (err) {
           console.error(`\n[client] Resource read error for "${uri}":`, err);
@@ -389,7 +479,11 @@ async function main(): Promise<void> {
           }
 
           console.log(`\n[client] Fetching prompt "${promptName}" with args:`, JSON.stringify(args));
-          const result = await client.getPrompt({ name: promptName, arguments: args });
+          const result = await client.getPrompt({
+            name: promptName,
+            arguments: args,
+            _meta: activeToken ? { token: activeToken } : undefined,
+          } as any);
           printJson(`Prompt: ${promptName}`, result);
         } catch (err) {
           console.error(`\n[client] Get prompt error for "${promptName}":`, err);

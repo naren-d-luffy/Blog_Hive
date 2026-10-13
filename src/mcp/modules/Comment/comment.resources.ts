@@ -2,6 +2,8 @@ import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ReadResourceTemplateCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { commentService } from "../../../modules/Comment/comment.service";
 import { formatResourceError, formatResourceSuccess } from "../../utils/mcp.helpers";
+import { guardTemplateResource } from "../../security/mcp.security.guard";
+import { mcpConfig } from "../../../config/mcp/mcp.config";
 
 // ─── URI scheme ───────────────────────────────────────────────────────────────
 //
@@ -20,15 +22,18 @@ export const commentsByBlogTemplate = {
     "identified by its MongoDB ObjectId. " +
     "Example URI: comment://blog/6630f1e2c1234abc567890ef",
   mimeType: "application/json" as const,
-  readHandler: (async (uri: URL, variables) => {
-    const blogId = String(variables["blogId"] ?? "");
-    try {
-      const result = await commentService.getComments(blogId, undefined, 20);
-      return formatResourceSuccess(uri.href, result);
-    } catch (err) {
-      return formatResourceError(uri.href, err);
-    }
-  }) as ReadResourceTemplateCallback,
+  readHandler: guardTemplateResource(
+    (async (uri: URL, variables) => {
+      const blogId = String(variables["blogId"] ?? "");
+      try {
+        const result = await commentService.getComments(blogId, undefined, 20);
+        return formatResourceSuccess(uri.href, result);
+      } catch (err) {
+        return formatResourceError(uri.href, err);
+      }
+    }) as ReadResourceTemplateCallback,
+    { requireAuth: mcpConfig.security.strictMode, actionName: "comment://blog/{blogId}" },
+  ),
 };
 
 /** comment://replies/{commentId} — replies nested under a specific comment */
@@ -40,15 +45,18 @@ export const repliesByCommentTemplate = {
     "identified by its MongoDB ObjectId. " +
     "Example URI: comment://replies/6630f1e2c1234abc567890ab",
   mimeType: "application/json" as const,
-  readHandler: (async (uri: URL, variables) => {
-    const commentId = String(variables["commentId"] ?? "");
-    try {
-      const result = await commentService.getReplies(commentId, undefined, 20);
-      return formatResourceSuccess(uri.href, result);
-    } catch (err) {
-      return formatResourceError(uri.href, err);
-    }
-  }) as ReadResourceTemplateCallback,
+  readHandler: guardTemplateResource(
+    (async (uri: URL, variables) => {
+      const commentId = String(variables["commentId"] ?? "");
+      try {
+        const result = await commentService.getReplies(commentId, undefined, 20);
+        return formatResourceSuccess(uri.href, result);
+      } catch (err) {
+        return formatResourceError(uri.href, err);
+      }
+    }) as ReadResourceTemplateCallback,
+    { requireAuth: mcpConfig.security.strictMode, actionName: "comment://replies/{commentId}" },
+  ),
 };
 
 // ─── Registries ───────────────────────────────────────────────────────────────

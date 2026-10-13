@@ -148,6 +148,13 @@ async function bootstrap(): Promise<void> {
     `[MCP] Registered ${totalPrompts} prompts (${blogPrompts.length} blog, ${commentPrompts.length} comment)`,
   );
 
+  console.error(
+    `[MCP] Security: strictMode=${mcpConfig.security.strictMode}, allowEnvFallback=${mcpConfig.security.allowEnvFallback}`,
+  );
+  if (process.env.MCP_ACCESS_TOKEN) {
+    console.error("[MCP] Security: Detected MCP_ACCESS_TOKEN in environment");
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 

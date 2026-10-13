@@ -2,6 +2,8 @@ import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ReadResourceCallback, ReadResourceTemplateCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { blogService } from "../../../modules/Blog/blog.service";
 import { formatResourceError, formatResourceSuccess } from "../../utils/mcp.helpers";
+import { guardStaticResource, guardTemplateResource } from "../../security/mcp.security.guard";
+import { mcpConfig } from "../../../config/mcp/mcp.config";
 
 // ─── URI scheme ───────────────────────────────────────────────────────────────
 //
@@ -25,14 +27,17 @@ export const blogCatalogueResource = {
     "A snapshot of the first page (up to 20 items) of all published blog posts, " +
     "sorted by creation date descending. Use the get-all-blogs tool for paginated access.",
   mimeType: "application/json" as const,
-  readHandler: (async (uri: URL) => {
-    try {
-      const result = await blogService.getAllBlogs(undefined, 20);
-      return formatResourceSuccess(uri.href, result);
-    } catch (err) {
-      return formatResourceError(uri.href, err);
-    }
-  }) as ReadResourceCallback,
+  readHandler: guardStaticResource(
+    (async (uri: URL) => {
+      try {
+        const result = await blogService.getAllBlogs(undefined, 20);
+        return formatResourceSuccess(uri.href, result);
+      } catch (err) {
+        return formatResourceError(uri.href, err);
+      }
+    }) as ReadResourceCallback,
+    { requireAuth: mcpConfig.security.strictMode, actionName: "blog://catalogue" },
+  ),
 };
 
 /** blog://popular — first page of blogs sorted by popularity score */
@@ -43,14 +48,17 @@ export const blogPopularResource = {
     "A snapshot of the top 20 blogs ranked by their popularity score " +
     "(weighted combination of views, likes and comment count).",
   mimeType: "application/json" as const,
-  readHandler: (async (uri: URL) => {
-    try {
-      const result = await blogService.getAllByPopularity(undefined, 20);
-      return formatResourceSuccess(uri.href, result);
-    } catch (err) {
-      return formatResourceError(uri.href, err);
-    }
-  }) as ReadResourceCallback,
+  readHandler: guardStaticResource(
+    (async (uri: URL) => {
+      try {
+        const result = await blogService.getAllByPopularity(undefined, 20);
+        return formatResourceSuccess(uri.href, result);
+      } catch (err) {
+        return formatResourceError(uri.href, err);
+      }
+    }) as ReadResourceCallback,
+    { requireAuth: mcpConfig.security.strictMode, actionName: "blog://popular" },
+  ),
 };
 
 // ─── Resource templates ───────────────────────────────────────────────────────
@@ -63,15 +71,18 @@ export const blogByIdTemplate = {
     "Returns the full details of a single blog post identified by its MongoDB ObjectId. " +
     "Example URI: blog://post/6630f1e2c1234abc567890ef",
   mimeType: "application/json" as const,
-  readHandler: (async (uri: URL, variables) => {
-    const id = String(variables["id"] ?? "");
-    try {
-      const result = await blogService.getById(id);
-      return formatResourceSuccess(uri.href, result);
-    } catch (err) {
-      return formatResourceError(uri.href, err);
-    }
-  }) as ReadResourceTemplateCallback,
+  readHandler: guardTemplateResource(
+    (async (uri: URL, variables) => {
+      const id = String(variables["id"] ?? "");
+      try {
+        const result = await blogService.getById(id);
+        return formatResourceSuccess(uri.href, result);
+      } catch (err) {
+        return formatResourceError(uri.href, err);
+      }
+    }) as ReadResourceTemplateCallback,
+    { requireAuth: mcpConfig.security.strictMode, actionName: "blog://post/{id}" },
+  ),
 };
 
 /** blog://slug/{slug} — fetch a single published blog post by its URL slug */
@@ -82,15 +93,18 @@ export const blogBySlugTemplate = {
     "Returns a single published blog post identified by its URL-friendly slug. " +
     "Example URI: blog://slug/my-first-post-abc123",
   mimeType: "application/json" as const,
-  readHandler: (async (uri: URL, variables) => {
-    const slug = String(variables["slug"] ?? "");
-    try {
-      const result = await blogService.getBySlug(slug);
-      return formatResourceSuccess(uri.href, result);
-    } catch (err) {
-      return formatResourceError(uri.href, err);
-    }
-  }) as ReadResourceTemplateCallback,
+  readHandler: guardTemplateResource(
+    (async (uri: URL, variables) => {
+      const slug = String(variables["slug"] ?? "");
+      try {
+        const result = await blogService.getBySlug(slug);
+        return formatResourceSuccess(uri.href, result);
+      } catch (err) {
+        return formatResourceError(uri.href, err);
+      }
+    }) as ReadResourceTemplateCallback,
+    { requireAuth: mcpConfig.security.strictMode, actionName: "blog://slug/{slug}" },
+  ),
 };
 
 // ─── Registries ───────────────────────────────────────────────────────────────

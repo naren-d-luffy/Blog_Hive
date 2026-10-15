@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { blogService } from "../../../modules/Blog/blog.service";
-import { formatToolError, formatToolSuccess } from "../../utils/mcp.helpers";
+import { formatToolSuccess } from "../../utils/mcp.helpers";
+import { guardToolHandler } from "../../security/mcp.security.guard";
+import { mcpConfig } from "../../../config/mcp/mcp.config";
 
 // ─── Shared sub-schemas ───────────────────────────────────────────────────────
 const mongoId = z
@@ -44,7 +46,9 @@ const getBlogBySlugSchema = z.object({
 const createBlogSchema = z.object({
   heading: z.string().min(3).max(150).describe("Blog title / heading"),
   content: z.string().min(10).describe("Full blog body content (HTML or Markdown)"),
-  userId: mongoId.describe("MongoDB ObjectId of the author creating the blog"),
+  userId: mongoId
+    .optional()
+    .describe("MongoDB ObjectId of the author (optional: automatically bound to authenticated user token)"),
   tags: z.array(z.string().trim()).optional().describe("Optional list of tag strings"),
   category: z.array(z.string().trim()).optional().describe("Optional list of category strings"),
   status: z.enum(["draft", "published", "archived"]).optional().describe("Publication status"),
@@ -52,8 +56,13 @@ const createBlogSchema = z.object({
 
 const updateBlogSchema = z.object({
   blogId: mongoId.describe("MongoDB ObjectId of the blog to update"),
-  requesterId: mongoId.describe("MongoDB ObjectId of the user making the request"),
-  requesterRole: z.enum(["user", "admin"]).describe("Role of the requester"),
+  requesterId: mongoId
+    .optional()
+    .describe("MongoDB ObjectId of the user making the request (optional: automatically bound from token)"),
+  requesterRole: z
+    .enum(["user", "admin"])
+    .optional()
+    .describe("Role of the requester (optional: automatically verified from token)"),
   heading: z.string().min(3).max(150).optional().describe("New heading"),
   content: z.string().min(10).optional().describe("New content"),
   tags: z.array(z.string().trim()).optional().describe("Replacement tag list"),
@@ -63,18 +72,27 @@ const updateBlogSchema = z.object({
 
 const deleteBlogSchema = z.object({
   blogId: mongoId.describe("MongoDB ObjectId of the blog to delete"),
-  requesterId: mongoId.describe("MongoDB ObjectId of the requester"),
-  requesterRole: z.enum(["user", "admin"]).describe("Role of the requester"),
+  requesterId: mongoId
+    .optional()
+    .describe("MongoDB ObjectId of the requester (optional: automatically bound from token)"),
+  requesterRole: z
+    .enum(["user", "admin"])
+    .optional()
+    .describe("Role of the requester (optional: automatically verified from token)"),
 });
 
 const likeBlogSchema = z.object({
   blogId: mongoId.describe("MongoDB ObjectId of the blog to like"),
-  userId: mongoId.describe("MongoDB ObjectId of the user who is liking"),
+  userId: mongoId
+    .optional()
+    .describe("MongoDB ObjectId of user liking (optional: automatically bound from token)"),
 });
 
 const unlikeBlogSchema = z.object({
   blogId: mongoId.describe("MongoDB ObjectId of the blog to unlike"),
-  userId: mongoId.describe("MongoDB ObjectId of the user who is unliking"),
+  userId: mongoId
+    .optional()
+    .describe("MongoDB ObjectId of user unliking (optional: automatically bound from token)"),
 });
 
 const reportBlogSchema = z.object({
@@ -96,14 +114,13 @@ export const getAllBlogsTool = {
     "Use 'cursor' from the previous response to fetch the next page. " +
     "Great for browsing the full blog catalogue.",
   inputSchema: cursorPagination,
-  handler: async (input: z.infer<typeof cursorPagination>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof cursorPagination>) => {
       const result = await blogService.getAllBlogs(input.cursor, input.limit);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "get-all-blogs" },
+  ),
 };
 
 export const getBlogsByPopularityTool = {
@@ -113,99 +130,92 @@ export const getBlogsByPopularityTool = {
     "(a weighted mix of views, likes and comment count). " +
     "Ideal for 'trending' or 'top posts' features.",
   inputSchema: cursorPagination,
-  handler: async (input: z.infer<typeof cursorPagination>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof cursorPagination>) => {
       const result = await blogService.getAllByPopularity(input.cursor, input.limit);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "get-blogs-by-popularity" },
+  ),
 };
 
 export const getBlogsByCategoryTool = {
   name: "get-blogs-by-category",
   description:
-    "Returns published blogs that belong to a specific category. " +
-    "Paginated with cursor support.",
+    "Fetches published blogs assigned to a specific category (case-insensitive substring match). " +
+    "Returns cursor pagination metadata.",
   inputSchema: getBlogsByCategorySchema,
-  handler: async (input: z.infer<typeof getBlogsByCategorySchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof getBlogsByCategorySchema>) => {
       const result = await blogService.getAllByCategory(input.category, input.cursor, input.limit);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "get-blogs-by-category" },
+  ),
 };
 
 export const getBlogsByTagTool = {
   name: "get-blogs-by-tag",
   description:
-    "Returns published blogs that carry a specific tag. " +
-    "Tags are free-form strings set by authors at creation time.",
+    "Fetches published blogs matching a given tag (case-insensitive). " +
+    "Returns cursor pagination metadata.",
   inputSchema: getBlogsByTagSchema,
-  handler: async (input: z.infer<typeof getBlogsByTagSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof getBlogsByTagSchema>) => {
       const result = await blogService.getAllByTag(input.tag, input.cursor, input.limit);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "get-blogs-by-tag" },
+  ),
 };
 
 export const getBlogsByAuthorTool = {
   name: "get-blogs-by-author",
   description:
-    "Returns blogs (all statuses) written by a specific author. " +
-    "Requires the author's MongoDB ObjectId.",
+    "Returns published blogs written by a specific author (identified by author's userId). " +
+    "Supports cursor pagination.",
   inputSchema: getBlogsByAuthorSchema,
-  handler: async (input: z.infer<typeof getBlogsByAuthorSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof getBlogsByAuthorSchema>) => {
       const result = await blogService.getAllByAuthor(input.userId, input.cursor, input.limit);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "get-blogs-by-author" },
+  ),
 };
 
 export const searchBlogsTool = {
   name: "search-blogs",
   description:
-    "Full-text search across blog headings and content. " +
-    "Requires at least 2 characters. " +
-    "Supports cursor-based pagination for iterating large result sets.",
+    "Performs text search across published blog headings and contents. " +
+    "Returns matched blogs with highlights and pagination metadata.",
   inputSchema: searchBlogsSchema,
-  handler: async (input: z.infer<typeof searchBlogsSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof searchBlogsSchema>) => {
       const result = await blogService.searchBlogs(
         input.query,
         { cursor: input.cursor, page: input.page },
         input.limit,
       );
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "search-blogs" },
+  ),
 };
 
 export const getBlogByIdTool = {
   name: "get-blog-by-id",
   description:
-    "Fetches a single blog post by its MongoDB ObjectId. " +
-    "Returns full sanitized blog details. Throws 404 if not found or soft-deleted.",
+    "Fetches the full details of a single blog post using its MongoDB ObjectId. " +
+    "Returns the complete document including views, likeCount, commentCount, and timestamps.",
   inputSchema: getBlogByIdSchema,
-  handler: async (input: z.infer<typeof getBlogByIdSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof getBlogByIdSchema>) => {
       const result = await blogService.getById(input.blogId);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "get-blog-by-id" },
+  ),
 };
 
 export const getBlogBySlugTool = {
@@ -214,135 +224,136 @@ export const getBlogBySlugTool = {
     "Fetches a single published blog post by its URL-friendly slug string " +
     "(e.g. 'my-first-post-xyz123'). Useful when the AI knows the slug from a URL.",
   inputSchema: getBlogBySlugSchema,
-  handler: async (input: z.infer<typeof getBlogBySlugSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof getBlogBySlugSchema>) => {
       const result = await blogService.getBySlug(input.slug);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "get-blog-by-slug" },
+  ),
 };
 
 export const createBlogTool = {
   name: "create-blog",
   description:
-    "Creates a new blog post. The caller must supply a valid author userId. " +
-    "A unique URL slug is auto-generated from the heading. " +
-    "Status defaults to 'draft' if not supplied.",
+    "[Protected] Creates a new blog post. Requires user authentication. " +
+    "The author identity is automatically verified and bound from the access token. " +
+    "A unique URL slug is auto-generated from the heading. Status defaults to 'draft'.",
   inputSchema: createBlogSchema,
-  handler: async (input: z.infer<typeof createBlogSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof createBlogSchema>, _extra, context) => {
       const { userId, ...blogData } = input;
-      const result = await blogService.createBlog(blogData, userId);
+      const authorId = context?.user.id ?? userId!;
+      const result = await blogService.createBlog(blogData, authorId);
       return formatToolSuccess(result, 201);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: true, roles: ["user", "admin"], actionName: "create-blog" },
+  ),
 };
 
 export const updateBlogTool = {
   name: "update-blog",
   description:
-    "Updates an existing blog post. The requester must be the blog owner or an admin. " +
-    "All fields are optional – only supplied fields are patched. " +
-    "Changing the heading regenerates the slug automatically.",
+    "[Protected] Updates an existing blog post. Requires authentication. " +
+    "The requester must be the blog owner or an admin. Identity is verified via access token.",
   inputSchema: updateBlogSchema,
-  handler: async (input: z.infer<typeof updateBlogSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof updateBlogSchema>, _extra, context) => {
       const { blogId, requesterId, requesterRole, ...updateData } = input;
-      const result = await blogService.updateBlog(blogId, updateData, requesterId, requesterRole);
+      const actualRequesterId = context?.user.id ?? requesterId!;
+      const actualRequesterRole = context?.user.role ?? requesterRole!;
+      const result = await blogService.updateBlog(
+        blogId,
+        updateData,
+        actualRequesterId,
+        actualRequesterRole,
+      );
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: true, roles: ["user", "admin"], actionName: "update-blog" },
+  ),
 };
 
 export const deleteBlogTool = {
   name: "delete-blog",
   description:
-    "Soft-deletes a blog post. The post is marked deleted but NOT permanently removed. " +
-    "Only the blog owner or an admin can perform this action.",
+    "[Protected] Soft-deletes a blog post. Requires authentication. " +
+    "Only the blog owner or an admin can perform this action. Identity is verified via access token.",
   inputSchema: deleteBlogSchema,
-  handler: async (input: z.infer<typeof deleteBlogSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof deleteBlogSchema>, _extra, context) => {
+      const actualRequesterId = context?.user.id ?? input.requesterId!;
+      const actualRequesterRole = context?.user.role ?? input.requesterRole!;
       const result = await blogService.deleteBlog(
         input.blogId,
-        input.requesterId,
-        input.requesterRole,
+        actualRequesterId,
+        actualRequesterRole,
       );
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: true, roles: ["user", "admin"], actionName: "delete-blog" },
+  ),
 };
 
 export const likeBlogTool = {
   name: "like-blog",
   description:
-    "Adds a like from a specific user to a blog post. " +
-    "Idempotent-safe: throws 409 if the user has already liked the post.",
+    "[Protected] Adds a like from the authenticated user to a blog post. Requires authentication. " +
+    "Idempotent-safe: returns 409 if already liked.",
   inputSchema: likeBlogSchema,
-  handler: async (input: z.infer<typeof likeBlogSchema>) => {
-    try {
-      const result = await blogService.likeBlog(input.blogId, input.userId);
+  handler: guardToolHandler(
+    async (input: z.infer<typeof likeBlogSchema>, _extra, context) => {
+      const userId = context?.user.id ?? input.userId!;
+      const result = await blogService.likeBlog(input.blogId, userId);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: true, roles: ["user", "admin"], actionName: "like-blog" },
+  ),
 };
 
 export const unlikeBlogTool = {
   name: "unlike-blog",
   description:
-    "Removes a previously placed like from a blog post. " +
-    "Throws 409 if the user had not liked the post.",
+    "[Protected] Removes a like from the authenticated user on a blog post. Requires authentication.",
   inputSchema: unlikeBlogSchema,
-  handler: async (input: z.infer<typeof unlikeBlogSchema>) => {
-    try {
-      const result = await blogService.unlikeBlog(input.blogId, input.userId);
+  handler: guardToolHandler(
+    async (input: z.infer<typeof unlikeBlogSchema>, _extra, context) => {
+      const userId = context?.user.id ?? input.userId!;
+      const result = await blogService.unlikeBlog(input.blogId, userId);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: true, roles: ["user", "admin"], actionName: "unlike-blog" },
+  ),
 };
 
 export const reportBlogTool = {
   name: "report-blog",
   description:
-    "Increments the report counter on a blog post. " +
-    "Used to flag content for moderation review.",
+    "[Protected] Increments the report/flag counter on a blog post. Requires authentication.",
   inputSchema: reportBlogSchema,
-  handler: async (input: z.infer<typeof reportBlogSchema>) => {
-    try {
+  handler: guardToolHandler(
+    async (input: z.infer<typeof reportBlogSchema>) => {
       const result = await blogService.reportBlog(input.blogId);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: true, roles: ["user", "admin"], actionName: "report-blog" },
+  ),
 };
 
 export const trackViewTool = {
   name: "track-view",
   description:
-    "Tracks a view on a blog post. Each unique viewer (by userId or IP) is counted " +
-    "at most once per 10 minutes (enforced via Redis TTL). " +
-    "Triggers an async popularity score recalculation in the background.",
+    "Records a unique page view for a blog post (rate-limited by IP/user via Redis). " +
+    "Increments views counter if within cooldown.",
   inputSchema: trackViewSchema,
-  handler: async (input: z.infer<typeof trackViewSchema>) => {
-    try {
-      const result = await blogService.trackView(input.blogId, input.ip, input.userId);
+  handler: guardToolHandler(
+    async (input: z.infer<typeof trackViewSchema>, _extra, context) => {
+      const viewerId = context?.user.id ?? input.userId;
+      const result = await blogService.trackView(input.blogId, input.ip, viewerId);
       return formatToolSuccess(result);
-    } catch (err) {
-      return formatToolError(err);
-    }
-  },
+    },
+    { requireAuth: mcpConfig.security.strictMode, actionName: "track-view" },
+  ),
 };
 
 // ─── Registry ─────────────────────────────────────────────────────────────────

@@ -4,9 +4,19 @@ export const mcpConfig = {
 
   transport: "stdio" as const,
 
-  capabilities: { tools: {} },
+  capabilities: {
+    tools: {},
+    resources: {},
+    prompts: {},
+  },
 
-  description: "MCP server that exposes Blog and Comment management tools for the Blog_Back API."
+  security: {
+    strictMode: process.env.MCP_STRICT_AUTH === "true",
+    allowEnvFallback: true,
+  },
+
+  description:
+    "MCP server that exposes Blog and Comment management tools and resources for the Blog_Back API.",
 } as const;
 
 export type McpTransport = typeof mcpConfig.transport;

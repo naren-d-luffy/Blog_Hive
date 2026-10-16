@@ -7,11 +7,38 @@ const mcp_js_1 = require("@modelcontextprotocol/sdk/server/mcp.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const db_config_1 = __importDefault(require("../config/db.config"));
 const mcp_config_1 = require("../config/mcp/mcp.config");
+// ─── Tools ────────────────────────────────────────────────────────────────────
 const blog_tools_1 = require("./modules/Blog/blog.tools");
 const comment_tools_1 = require("./modules/Comment/comment.tools");
+// ─── Resources ────────────────────────────────────────────────────────────────
+const blog_resources_1 = require("./modules/Blog/blog.resources");
+const comment_resources_1 = require("./modules/Comment/comment.resources");
+// ─── Prompts ─────────────────────────────────────────────────────────────────
+const blog_prompts_1 = require("./modules/Blog/blog.prompts");
+const comment_prompts_1 = require("./modules/Comment/comment.prompts");
+// ─── Registration helpers ─────────────────────────────────────────────────────
 function registerTools(server, tools) {
     for (const tool of tools) {
         server.tool(tool.name, tool.description, tool.inputSchema.shape, tool.handler);
+    }
+}
+function registerResources(server, staticResources, templateResources) {
+    for (const res of staticResources) {
+        server.resource(res.name, res.uri, { description: res.description, mimeType: res.mimeType }, res.readHandler);
+    }
+    for (const res of templateResources) {
+        server.resource(res.name, res.template, { description: res.description, mimeType: res.mimeType }, res.readHandler);
+    }
+}
+// ─── Prompts registration ────────────────────────────────────────────────────
+function registerPrompts(server, prompts) {
+    for (const prompt of prompts) {
+        if (prompt.argsSchema) {
+            server.prompt(prompt.name, prompt.description, prompt.argsSchema, prompt.handler);
+        }
+        else {
+            server.prompt(prompt.name, prompt.description, prompt.handler);
+        }
     }
 }
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
@@ -24,10 +51,24 @@ async function bootstrap() {
     }, {
         capabilities: mcp_config_1.mcpConfig.capabilities,
     });
+    // ── Tools ──
     registerTools(server, blog_tools_1.blogTools);
     registerTools(server, comment_tools_1.commentTools);
     const totalTools = blog_tools_1.blogTools.length + comment_tools_1.commentTools.length;
     console.error(`[MCP] Registered ${totalTools} tools (${blog_tools_1.blogTools.length} blog, ${comment_tools_1.commentTools.length} comment)`);
+    // ── Resources ──
+    registerResources(server, [...blog_resources_1.blogStaticResources], [...blog_resources_1.blogResourceTemplates, ...comment_resources_1.commentResourceTemplates]);
+    const totalStaticResources = blog_resources_1.blogStaticResources.length;
+    const totalTemplateResources = blog_resources_1.blogResourceTemplates.length + comment_resources_1.commentResourceTemplates.length;
+    console.error(`[MCP] Registered ${totalStaticResources} static resources and ${totalTemplateResources} resource templates`);
+    // ── Prompts ──
+    registerPrompts(server, [...blog_prompts_1.blogPrompts, ...comment_prompts_1.commentPrompts]);
+    const totalPrompts = blog_prompts_1.blogPrompts.length + comment_prompts_1.commentPrompts.length;
+    console.error(`[MCP] Registered ${totalPrompts} prompts (${blog_prompts_1.blogPrompts.length} blog, ${comment_prompts_1.commentPrompts.length} comment)`);
+    console.error(`[MCP] Security: strictMode=${mcp_config_1.mcpConfig.security.strictMode}, allowEnvFallback=${mcp_config_1.mcpConfig.security.allowEnvFallback}`);
+    if (process.env.MCP_ACCESS_TOKEN) {
+        console.error("[MCP] Security: Detected MCP_ACCESS_TOKEN in environment");
+    }
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);
     console.error("[MCP] Server connected via stdio – ready for requests");

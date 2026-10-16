@@ -4,6 +4,8 @@ exports.commentTools = exports.reportCommentTool = exports.unlikeCommentTool = e
 const zod_1 = require("zod");
 const comment_service_1 = require("../../../modules/Comment/comment.service");
 const mcp_helpers_1 = require("../../utils/mcp.helpers");
+const mcp_security_guard_1 = require("../../security/mcp.security.guard");
+const mcp_config_1 = require("../../../config/mcp/mcp.config");
 // ─── Shared sub-schemas ───────────────────────────────────────────────────────
 const mongoId = zod_1.z
     .string()
@@ -15,7 +17,9 @@ const cursorPagination = zod_1.z.object({
 // ─── Input schema types ───────────────────────────────────────────────────────
 const createCommentSchema = zod_1.z.object({
     blogId: mongoId.describe("MongoDB ObjectId of the blog post being commented on"),
-    userId: mongoId.describe("MongoDB ObjectId of the user posting the comment"),
+    userId: mongoId
+        .optional()
+        .describe("MongoDB ObjectId of user posting (optional: automatically bound from access token)"),
     content: zod_1.z
         .string()
         .trim()
@@ -34,7 +38,9 @@ const getRepliesSchema = cursorPagination.extend({
 });
 const updateCommentSchema = zod_1.z.object({
     commentId: mongoId.describe("MongoDB ObjectId of the comment to update"),
-    userId: mongoId.describe("MongoDB ObjectId of the comment owner making the update"),
+    userId: mongoId
+        .optional()
+        .describe("MongoDB ObjectId of comment owner (optional: automatically bound from token)"),
     content: zod_1.z
         .string()
         .trim()
@@ -44,7 +50,9 @@ const updateCommentSchema = zod_1.z.object({
 });
 const deleteCommentSchema = zod_1.z.object({
     commentId: mongoId.describe("MongoDB ObjectId of the comment to delete"),
-    userId: mongoId.describe("MongoDB ObjectId of the owner requesting deletion"),
+    userId: mongoId
+        .optional()
+        .describe("MongoDB ObjectId of owner (optional: automatically bound from token)"),
 });
 const likeCommentSchema = zod_1.z.object({
     commentId: mongoId.describe("MongoDB ObjectId of the comment to like"),
@@ -58,20 +66,15 @@ const reportCommentSchema = zod_1.z.object({
 // ─── Comment Tool Definitions ─────────────────────────────────────────────────
 exports.createCommentTool = {
     name: "create-comment",
-    description: "Creates a new comment on a blog post. " +
-        "If 'parentCommentId' is supplied the comment is treated as a reply and the " +
-        "parent's reply counter is incremented. " +
-        "Root comments are automatically attached to the blog.",
+    description: "[Protected] Creates a new comment on a blog post. Requires user authentication. " +
+        "The commenter's identity is automatically verified from the access token. " +
+        "Supply 'parentCommentId' to post a reply.",
     inputSchema: createCommentSchema,
-    handler: async (input) => {
-        try {
-            const result = await comment_service_1.commentService.createComment(input.blogId, input.userId, input.content, input.parentCommentId);
-            return (0, mcp_helpers_1.formatToolSuccess)(result, 201);
-        }
-        catch (err) {
-            return (0, mcp_helpers_1.formatToolError)(err);
-        }
-    },
+    handler: (0, mcp_security_guard_1.guardToolHandler)(async (input, _extra, context) => {
+        const authorId = context?.user.id ?? input.userId;
+        const result = await comment_service_1.commentService.createComment(input.blogId, authorId, input.content, input.parentCommentId);
+        return (0, mcp_helpers_1.formatToolSuccess)(result, 201);
+    }, { requireAuth: true, roles: ["user", "admin"], actionName: "create-comment" }),
 };
 exports.getCommentsTool = {
     name: "get-comments",
@@ -79,108 +82,69 @@ exports.getCommentsTool = {
         "sorted by creation time newest-first. " +
         "Use the returned 'nextCursor' to fetch subsequent pages.",
     inputSchema: getCommentsSchema,
-    handler: async (input) => {
-        try {
-            const result = await comment_service_1.commentService.getComments(input.blogId, input.cursor, input.limit);
-            return (0, mcp_helpers_1.formatToolSuccess)(result);
-        }
-        catch (err) {
-            return (0, mcp_helpers_1.formatToolError)(err);
-        }
-    },
+    handler: (0, mcp_security_guard_1.guardToolHandler)(async (input) => {
+        const result = await comment_service_1.commentService.getComments(input.blogId, input.cursor, input.limit);
+        return (0, mcp_helpers_1.formatToolSuccess)(result);
+    }, { requireAuth: mcp_config_1.mcpConfig.security.strictMode, actionName: "get-comments" }),
 };
 exports.getRepliesToolDef = {
     name: "get-replies",
     description: "Returns replies (child comments) nested under a specific parent comment. " +
         "Paginated with the same cursor strategy as get-comments.",
     inputSchema: getRepliesSchema,
-    handler: async (input) => {
-        try {
-            const result = await comment_service_1.commentService.getReplies(input.commentId, input.cursor, input.limit);
-            return (0, mcp_helpers_1.formatToolSuccess)(result);
-        }
-        catch (err) {
-            return (0, mcp_helpers_1.formatToolError)(err);
-        }
-    },
+    handler: (0, mcp_security_guard_1.guardToolHandler)(async (input) => {
+        const result = await comment_service_1.commentService.getReplies(input.commentId, input.cursor, input.limit);
+        return (0, mcp_helpers_1.formatToolSuccess)(result);
+    }, { requireAuth: mcp_config_1.mcpConfig.security.strictMode, actionName: "get-replies" }),
 };
 exports.updateCommentTool = {
     name: "update-comment",
-    description: "Updates the text content of a comment. " +
-        "Only the original author (userId) may update their own comment. " +
-        "Throws 403 if the userId does not match the comment owner.",
+    description: "[Protected] Updates the text content of a comment. Requires user authentication. " +
+        "Only the original author may update their own comment.",
     inputSchema: updateCommentSchema,
-    handler: async (input) => {
-        try {
-            const result = await comment_service_1.commentService.updateComment(input.commentId, input.userId, input.content);
-            return (0, mcp_helpers_1.formatToolSuccess)(result);
-        }
-        catch (err) {
-            return (0, mcp_helpers_1.formatToolError)(err);
-        }
-    },
+    handler: (0, mcp_security_guard_1.guardToolHandler)(async (input, _extra, context) => {
+        const authorId = context?.user.id ?? input.userId;
+        const result = await comment_service_1.commentService.updateComment(input.commentId, authorId, input.content);
+        return (0, mcp_helpers_1.formatToolSuccess)(result);
+    }, { requireAuth: true, roles: ["user", "admin"], actionName: "update-comment" }),
 };
 exports.deleteCommentTool = {
     name: "delete-comment",
-    description: "Soft-deletes a comment (marks it deleted, does NOT erase from the database). " +
-        "Root comments are detached from the parent blog. " +
-        "Reply comments decrement the parent's reply count. " +
-        "Only the comment owner may call this.",
+    description: "[Protected] Soft-deletes a comment. Requires user authentication. " +
+        "Only the comment owner (or an admin) may delete a comment.",
     inputSchema: deleteCommentSchema,
-    handler: async (input) => {
-        try {
-            const result = await comment_service_1.commentService.deleteComment(input.commentId, input.userId);
-            return (0, mcp_helpers_1.formatToolSuccess)(result);
-        }
-        catch (err) {
-            return (0, mcp_helpers_1.formatToolError)(err);
-        }
-    },
+    handler: (0, mcp_security_guard_1.guardToolHandler)(async (input, _extra, context) => {
+        const authorId = context?.user.id ?? input.userId;
+        const result = await comment_service_1.commentService.deleteComment(input.commentId, authorId);
+        return (0, mcp_helpers_1.formatToolSuccess)(result);
+    }, { requireAuth: true, roles: ["user", "admin"], actionName: "delete-comment" }),
 };
 exports.likeCommentTool = {
     name: "like-comment",
-    description: "Increments the like counter on a comment by 1. " +
-        "No de-duplication at the service layer – the caller is responsible for " +
-        "ensuring a user doesn't double-like (auth layer concern).",
+    description: "[Protected] Increments the like counter on a comment by 1. Requires authentication.",
     inputSchema: likeCommentSchema,
-    handler: async (input) => {
-        try {
-            const result = await comment_service_1.commentService.likeComment(input.commentId);
-            return (0, mcp_helpers_1.formatToolSuccess)(result);
-        }
-        catch (err) {
-            return (0, mcp_helpers_1.formatToolError)(err);
-        }
-    },
+    handler: (0, mcp_security_guard_1.guardToolHandler)(async (input) => {
+        const result = await comment_service_1.commentService.likeComment(input.commentId);
+        return (0, mcp_helpers_1.formatToolSuccess)(result);
+    }, { requireAuth: true, roles: ["user", "admin"], actionName: "like-comment" }),
 };
 exports.unlikeCommentTool = {
     name: "unlike-comment",
-    description: "Decrements the like counter on a comment by 1.",
+    description: "[Protected] Decrements the like counter on a comment by 1. Requires authentication.",
     inputSchema: unlikeCommentSchema,
-    handler: async (input) => {
-        try {
-            const result = await comment_service_1.commentService.unlikeComment(input.commentId);
-            return (0, mcp_helpers_1.formatToolSuccess)(result);
-        }
-        catch (err) {
-            return (0, mcp_helpers_1.formatToolError)(err);
-        }
-    },
+    handler: (0, mcp_security_guard_1.guardToolHandler)(async (input) => {
+        const result = await comment_service_1.commentService.unlikeComment(input.commentId);
+        return (0, mcp_helpers_1.formatToolSuccess)(result);
+    }, { requireAuth: true, roles: ["user", "admin"], actionName: "unlike-comment" }),
 };
 exports.reportCommentTool = {
     name: "report-comment",
-    description: "Increments the report counter on a comment for moderation. " +
-        "High report counts can trigger manual review.",
+    description: "[Protected] Increments the report counter on a comment for moderation. Requires authentication.",
     inputSchema: reportCommentSchema,
-    handler: async (input) => {
-        try {
-            const result = await comment_service_1.commentService.reportComment(input.commentId);
-            return (0, mcp_helpers_1.formatToolSuccess)(result);
-        }
-        catch (err) {
-            return (0, mcp_helpers_1.formatToolError)(err);
-        }
-    },
+    handler: (0, mcp_security_guard_1.guardToolHandler)(async (input) => {
+        const result = await comment_service_1.commentService.reportComment(input.commentId);
+        return (0, mcp_helpers_1.formatToolSuccess)(result);
+    }, { requireAuth: true, roles: ["user", "admin"], actionName: "report-comment" }),
 };
 // ─── Registry ─────────────────────────────────────────────────────────────────
 exports.commentTools = [

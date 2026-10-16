@@ -3,9 +3,13 @@
   "name": "blog-mcp",
   "display_name": "Blog MCP",
   "version": "1.0.0",
-  "description": "Local MCP server for the Blog backend.",
+  "description": "Local MCP server for the Blog backend — exposes blog and comment tools, resources, and prompts.",
   "author": {
     "name": "RamNaren"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/naren-d-luffy/Blog_Back.git"
   },
   "server": {
     "type": "node",
@@ -16,16 +20,35 @@
         "${__dirname}/server/mcp/server.js"
       ],
       "env": {
-        "MCP_ENV_FILE": "${user_config.env_file}"
+        "MCP_ENV_FILE": "${user_config.env_file}",
+        "MCP_ACCESS_TOKEN": "${user_config.access_token}"
       }
+    }
+  },
+  "tools_generated": true,
+  "prompts_generated": true,
+  "keywords": ["blog", "mcp", "nodejs", "mongodb"],
+  "license": "MIT",
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["win32", "darwin"],
+    "runtimes": {
+      "node": ">=18.0.0"
     }
   },
   "user_config": {
     "env_file": {
       "type": "file",
-      "title": "Environment file",
-      "description": "Select the .env file used by the Blog MCP server.",
+      "title": "Environment file (.env)",
+      "description": "Select the .env file for the Blog MCP server (contains DB_URL, ACCESS_TOKEN, REDIS_HOST, etc.).",
       "required": true
+    },
+    "access_token": {
+      "type": "string",
+      "title": "Access Token (JWT)",
+      "description": "Your JWT access token. Generate one with: npm run mcp:token -- --id <userId> --role <user|admin>",
+      "sensitive": true,
+      "required": false
     }
   }
 }

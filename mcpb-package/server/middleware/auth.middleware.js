@@ -4,35 +4,35 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Authorize = exports.Authenticate = void 0;
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const env_config_1 = __importDefault(require("../config/env.config"));
 const AppError_1 = __importDefault(require("../utils/AppError"));
-const ACCESS_SECRET = env_config_1.default.ACCESS_TOKEN;
+const auth_core_1 = require("../auth/auth.core");
 const Authenticate = (req, res, next) => {
     const auth = req.headers.authorization;
     if (!auth || !auth.startsWith("Bearer ")) {
-        return next(new AppError_1.default("unauthorized: No token provided", 401));
+        return next(new AppError_1.default("Unauthorized: No token provided", 401));
     }
-    const token = auth.split(" ")[1];
+    const token = auth.slice("Bearer ".length).trim();
+    if (!token || token.includes(" ")) {
+        return next(new AppError_1.default("Unauthorized: Invalid token", 401));
+    }
     try {
-        const decode = jsonwebtoken_1.default.verify(token, ACCESS_SECRET);
-        req.user = decode;
+        req.user = (0, auth_core_1.verifyAccessToken)(token);
         next();
     }
     catch (error) {
-        return next(new AppError_1.default("Unauthorized: Invalid or expired token", 401, { error }));
+        next(error);
     }
 };
 exports.Authenticate = Authenticate;
-const Authorize = (...role) => {
+const Authorize = (...roles) => {
     return (req, res, next) => {
-        if (!req.user) {
-            return next(new AppError_1.default("Unauthorized", 401));
+        try {
+            (0, auth_core_1.authorizeRoles)(req.user, ...roles);
+            next();
         }
-        if (!role.includes(req.user.role)) {
-            return next(new AppError_1.default("Forbidden", 403));
+        catch (error) {
+            next(error);
         }
-        next();
     };
 };
 exports.Authorize = Authorize;

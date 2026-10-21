@@ -1,8 +1,20 @@
+import env from "../env.config";
+
 export const mcpConfig = {
   serverName: "blog-back-mcp",
   serverVersion: "1.0.0",
 
-  transport: "stdio" as const,
+  transport: env.MCP_TRANSPORT,
+
+  http: {
+    port: env.MCP_PORT,
+    host: env.MCP_HOST,
+    endpoint: env.MCP_ENDPOINT,
+    sessionIdleTimeoutMs: env.MCP_SESSION_IDLE_TIMEOUT_MS,
+    maxSessions: env.MCP_MAX_SESSIONS,
+    allowedHosts: env.MCP_ALLOWED_HOSTS,
+    allowedOrigins: env.MCP_ALLOWED_ORIGINS,
+  },
 
   capabilities: {
     tools: {},
@@ -11,7 +23,7 @@ export const mcpConfig = {
   },
 
   security: {
-    strictMode: process.env.MCP_STRICT_AUTH === "true",
+    strictMode: env.MCP_STRICT_AUTH,
     allowEnvFallback: true,
   },
 

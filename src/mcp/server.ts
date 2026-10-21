@@ -1,173 +1,137 @@
-import { McpServer, ResourceTemplate, ReadResourceCallback, ReadResourceTemplateCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
+import http from "node:http";
+import mongoose from "mongoose";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ZodRawShape } from "zod";
 
 import connectDB from "../config/db.config";
 import { mcpConfig } from "../config/mcp/mcp.config";
+import { createMcpServerInstance, mcpCatalogStats } from "./server.factory";
+import { SessionManager } from "./transports/session.manager";
+import { createMcpHttpApp } from "./transports/http.transport";
 
-// ─── Tools ────────────────────────────────────────────────────────────────────
-import { blogTools } from "./modules/Blog/blog.tools";
-import { commentTools } from "./modules/Comment/comment.tools";
+let httpServer: http.Server | undefined;
+let activeSessionManager: SessionManager | undefined;
 
-// ─── Resources ────────────────────────────────────────────────────────────────
-import {
-  blogStaticResources,
-  blogResourceTemplates,
-} from "./modules/Blog/blog.resources";
-import { commentResourceTemplates } from "./modules/Comment/comment.resources";
-
-// ─── Prompts ─────────────────────────────────────────────────────────────────
-import { blogPrompts } from "./modules/Blog/blog.prompts";
-import { commentPrompts } from "./modules/Comment/comment.prompts";
-
-// ─── Registration helpers ─────────────────────────────────────────────────────
-
-function registerTools(
-  server: McpServer,
-  tools: ReadonlyArray<{
-    name: string;
-    description: string;
-    inputSchema: { shape: ZodRawShape } & object;
-    handler: (input: any) => Promise<any>;
-  }>,
-): void {
-  for (const tool of tools) {
-    server.tool(
-      tool.name,
-      tool.description,
-      (tool.inputSchema as any).shape as ZodRawShape,
-      tool.handler,
-    );
-  }
-}
-
-function registerResources(
-  server: McpServer,
-  staticResources: ReadonlyArray<{
-    uri: string;
-    name: string;
-    description: string;
-    mimeType: string;
-    readHandler: ReadResourceCallback;
-  }>,
-  templateResources: ReadonlyArray<{
-    template: ResourceTemplate;
-    name: string;
-    description: string;
-    mimeType: string;
-    readHandler: ReadResourceTemplateCallback;
-  }>,
-): void {
-  for (const res of staticResources) {
-    server.resource(
-      res.name,
-      res.uri,
-      { description: res.description, mimeType: res.mimeType },
-      res.readHandler,
-    );
-  }
-
-  for (const res of templateResources) {
-    server.resource(
-      res.name,
-      res.template,
-      { description: res.description, mimeType: res.mimeType },
-      res.readHandler,
-    );
-  }
-}
-
-// ─── Prompts registration ────────────────────────────────────────────────────
-
-function registerPrompts(
-  server: McpServer,
-  prompts: ReadonlyArray<{
-    name: string;
-    description: string;
-    argsSchema?: ZodRawShape;
-    handler: (input: any) => Promise<any>;
-  }>,
-): void {
-  for (const prompt of prompts) {
-    if (prompt.argsSchema) {
-      server.prompt(
-        prompt.name,
-        prompt.description,
-        prompt.argsSchema as any,
-        prompt.handler,
-      );
-    } else {
-      server.prompt(prompt.name, prompt.description, prompt.handler);
-    }
-  }
-}
-
-// ─── Bootstrap ───────────────────────────────────────────────────────────────
-
+/**
+ * Boots the Dedicated MCP Server.
+ * Supports both modern Streamable HTTP (production default) and STDIO.
+ */
 async function bootstrap(): Promise<void> {
+  // 1. Connect MongoDB
   await connectDB();
-  console.error("[MCP] MongoDB connected");
+  console.error("[MCP] MongoDB connected successfully");
 
-  const server = new McpServer(
-    {
-      name: mcpConfig.serverName,
-      version: mcpConfig.serverVersion,
-    },
-    {
-      capabilities: mcpConfig.capabilities,
-    },
-  );
-
-  // ── Tools ──
-  registerTools(server, blogTools as any);
-  registerTools(server, commentTools as any);
-
-  const totalTools = blogTools.length + commentTools.length;
+  // 2. Display Catalog Summary
   console.error(
-    `[MCP] Registered ${totalTools} tools (${blogTools.length} blog, ${commentTools.length} comment)`,
+    `[MCP] Catalog ready: ${mcpCatalogStats.toolsCount} tools (${mcpCatalogStats.blogToolsCount} blog, ${mcpCatalogStats.commentToolsCount} comment), ` +
+      `${mcpCatalogStats.staticResourcesCount} static resources, ${mcpCatalogStats.templateResourcesCount} resource templates, ` +
+      `${mcpCatalogStats.promptsCount} prompts`,
   );
-
-  // ── Resources ──
-  registerResources(
-    server,
-    [...blogStaticResources],
-    [...blogResourceTemplates, ...commentResourceTemplates],
-  );
-
-  const totalStaticResources = blogStaticResources.length;
-  const totalTemplateResources = blogResourceTemplates.length + commentResourceTemplates.length;
-  console.error(
-    `[MCP] Registered ${totalStaticResources} static resources and ${totalTemplateResources} resource templates`,
-  );
-
-  // ── Prompts ──
-  registerPrompts(server, [...blogPrompts, ...commentPrompts] as any);
-
-  const totalPrompts = blogPrompts.length + commentPrompts.length;
-  console.error(
-    `[MCP] Registered ${totalPrompts} prompts (${blogPrompts.length} blog, ${commentPrompts.length} comment)`,
-  );
-
   console.error(
     `[MCP] Security: strictMode=${mcpConfig.security.strictMode}, allowEnvFallback=${mcpConfig.security.allowEnvFallback}`,
   );
-  if (process.env.MCP_ACCESS_TOKEN) {
-    console.error("[MCP] Security: Detected MCP_ACCESS_TOKEN in environment");
+
+  // 3. Start Selected Transport
+  if (mcpConfig.transport === "streamable-http") {
+    await startStreamableHttpServer();
+  } else {
+    await startStdioServer();
   }
+}
 
+/**
+ * Starts the production Streamable HTTP server with session management.
+ */
+async function startStreamableHttpServer(): Promise<void> {
+  const sessionManager = new SessionManager(mcpConfig.http.sessionIdleTimeoutMs);
+  activeSessionManager = sessionManager;
+  sessionManager.startIdleSweeper();
+
+  const app = createMcpHttpApp(sessionManager);
+  const { port, host, endpoint } = mcpConfig.http;
+
+  httpServer = app.listen(port, host, () => {
+    console.error(
+      `\n` +
+        `╔═════════════════════════════════════════════════════════════════════════╗\n` +
+        `║                  blog-back MCP Streamable HTTP Server                   ║\n` +
+        `╠═════════════════════════════════════════════════════════════════════════╣\n` +
+        `║  Status:         LISTENING                                              ║\n` +
+        `║  Transport:      Streamable HTTP (MCP 2025 Standard)                    ║\n` +
+        `║  Endpoint:       http://${host}:${port}${endpoint.padEnd(39)}║\n` +
+        `║  Health check:   http://${host}:${port}/health${"".padEnd(38)}║\n` +
+        `║  Max Sessions:   ${String(mcpConfig.http.maxSessions).padEnd(55)}║\n` +
+        `║  Idle Timeout:   ${String(mcpConfig.http.sessionIdleTimeoutMs / 60000) + " minutes"}`.padEnd(74) +
+        `║\n` +
+        `╚═════════════════════════════════════════════════════════════════════════╝\n`,
+    );
+  });
+
+  registerGracefulShutdown();
+}
+
+/**
+ * Fallback STDIO server runner (for single-process local debugging or direct child process invocation).
+ */
+async function startStdioServer(): Promise<void> {
+  const server = createMcpServerInstance();
   const transport = new StdioServerTransport();
-  await server.connect(transport);
 
-  console.error("[MCP] Server connected via stdio – ready for requests");
+  await server.connect(transport);
+  console.error("[MCP] Connected via STDIO transport – awaiting messages");
 
   const shutdown = async (signal: string) => {
-    console.error(`[MCP] ${signal} received – closing server`);
+    console.error(`[MCP] ${signal} received – closing STDIO server`);
     await server.close();
+    await mongoose.connection.close();
     process.exit(0);
   };
 
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
+}
+
+/**
+ * Registers process signal handlers to ensure active sessions and connections close gracefully.
+ */
+function registerGracefulShutdown(): void {
+  let isShuttingDown = false;
+
+  const handleShutdown = async (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    console.error(`\n[MCP] ${signal} received – starting graceful shutdown...`);
+
+    // 1. Stop accepting new HTTP requests
+    if (httpServer) {
+      httpServer.close(() => {
+        console.error("[MCP] HTTP server stopped accepting connections");
+      });
+    }
+
+    // 2. Terminate all active client transports and servers
+    if (activeSessionManager) {
+      console.error(
+        `[MCP] Draining ${activeSessionManager.size} active client sessions...`,
+      );
+      await activeSessionManager.closeAll();
+      console.error("[MCP] All sessions terminated");
+    }
+
+    // 3. Close database connection
+    try {
+      await mongoose.connection.close();
+      console.error("[MCP] MongoDB connection closed");
+    } catch (err) {
+      console.error("[MCP] Error closing MongoDB connection:", err);
+    }
+
+    console.error("[MCP] Graceful shutdown complete. Exiting.");
+    process.exit(0);
+  };
+
+  process.on("SIGINT", () => handleShutdown("SIGINT"));
+  process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 }
 
 bootstrap().catch((err) => {

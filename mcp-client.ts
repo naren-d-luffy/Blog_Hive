@@ -23,10 +23,13 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import * as readline from "readline";
 import { generateMcpAccessToken } from "./src/mcp/security/mcp.security.token";
 import { verifyAccessToken } from "./src/auth/auth.core";
 import { Role } from "./src/types/auth.types";
+import { mcpConfig } from "./src/config/mcp/mcp.config";
+import env from "./src/config/env.config";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -123,28 +126,6 @@ async function collectArgs(): Promise<Record<string, unknown>> {
 
 async function main(): Promise<void> {
   printBanner();
-  console.log("[client] Spawning MCP server…");
-
-  const isWindows = process.platform === "win32";
-  const transport = new StdioClientTransport({
-    command: isWindows ? "npx.cmd" : "npx",
-    args: ["ts-node", "src/mcp/server.ts"],
-    env: { ...process.env } as Record<string, string>,
-  });
-
-  const client = new Client(
-    { name: "blog-back-test-client", version: "1.0.0" },
-    { capabilities: {} },
-  );
-
-  try {
-    await client.connect(transport);
-  } catch (err) {
-    console.error("[client] Failed to connect to MCP server:", err);
-    process.exit(1);
-  }
-
-  console.log("[client] Connected to MCP server ✓\n");
 
   // Active authentication state for client session
   let activeToken: string | null = process.env.MCP_ACCESS_TOKEN ?? null;
@@ -157,6 +138,50 @@ async function main(): Promise<void> {
       activeToken = null;
     }
   }
+
+  const useStdio = process.argv.includes("--stdio") || env.MCP_TRANSPORT === "stdio";
+  const serverUrl =`http://${mcpConfig.http.host}:${mcpConfig.http.port}${mcpConfig.http.endpoint}`;
+
+  let transport: StdioClientTransport | StreamableHTTPClientTransport;
+
+  if (useStdio) {
+    console.log("[client] Connecting to MCP server via STDIO child process…");
+    const isWindows = process.platform === "win32";
+    transport = new StdioClientTransport({
+      command: isWindows ? "npx.cmd" : "npx",
+      args: ["ts-node", "src/mcp/server.ts"],
+      env: { ...process.env, MCP_TRANSPORT: "stdio" } as Record<string, string>,
+    });
+  } else {
+    console.log(`[client] Connecting to MCP Streamable HTTP server at ${serverUrl}…`);
+    transport = new StreamableHTTPClientTransport(new URL(serverUrl), {
+      requestInit: {
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
+      },
+    });
+  }
+
+  const client = new Client(
+    { name: "blog-back-test-client", version: "1.0.0" },
+    { capabilities: {} },
+  );
+
+  try {
+    await client.connect(transport);
+  } catch (err: any) {
+    console.error("[client] Failed to connect to MCP server:", err?.message || err);
+    if (!useStdio) {
+      console.error(
+        `[client] Ensure the MCP server is running first ("npm run mcp:start") or test via STDIO ("npm run mcp:client -- --stdio").`,
+      );
+    }
+    process.exit(1);
+  }
+
+  const sessionId = "sessionId" in transport ? (transport as any).sessionId : undefined;
+  console.log(
+    `[client] Connected to MCP server ✓ ${sessionId ? `(Session ID: ${sessionId})` : ""}\n`,
+  );
 
   // ── Fetch tool list at startup ──────────────────────────────────────────────
   let toolNames: string[] = [];
@@ -502,6 +527,9 @@ async function main(): Promise<void> {
       case "quit": {
         console.log("\n[client] Closing connection…");
         try {
+          if ("terminateSession" in transport && typeof (transport as any).terminateSession === "function") {
+            await (transport as any).terminateSession();
+          }
           await client.close();
         } catch {
           // Ignore close errors

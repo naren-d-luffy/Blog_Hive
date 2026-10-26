@@ -16,9 +16,9 @@
     "worker": "concurrently \"npm run worker:blog\" \"npm run worker:email\" \"npm run worker:log\"",
     "seed": "ts-node --project tsconfig.seed.json facker.script.ts",
     "test": "jest --runInBand",
-    "test:unit": "jest tests/unit --runInBand",
-    "test:integration": "jest tests/integration --runInBand",
-    "test:e2e": "jest tests/e2e --runInBand",
+    "test:unit": "jest src/tests/unit --runInBand",
+    "test:integration": "jest src/tests/integration --runInBand",
+    "test:e2e": "jest src/tests/e2e --runInBand",
     "test:watch": "jest --watch",
     "bench": "k6-bin\\k6-v0.57.0-windows-amd64\\k6.exe run"
   },

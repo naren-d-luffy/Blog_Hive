@@ -20,6 +20,8 @@ export function verifyAccessToken(token: string): AuthUser {
     return {
       id: decoded.id,
       role: decoded.role,
+      scope: typeof decoded.scope === "string" ? decoded.scope : undefined,
+      clientId: typeof decoded.clientId === "string" ? decoded.clientId : undefined,
     };
   } catch {
     throw new AppError("Unauthorized: Invalid or expired token", 401);
@@ -38,3 +40,28 @@ export function authorizeRoles(
     throw new AppError("Forbidden", 403);
   }
 }
+
+export function authorizeScopes(
+  user: AuthUser | undefined,
+  ...requiredScopes: string[]
+): void {
+  if (!user) {
+    throw new AppError("Unauthorized", 401);
+  }
+
+  // If token has no scope (standard full-access web session), pass through
+  if (!user.scope) {
+    return;
+  }
+
+  const tokenScopes = user.scope.split(" ").filter(Boolean);
+  const hasAll = requiredScopes.every((scope) => tokenScopes.includes(scope));
+
+  if (!hasAll) {
+    throw new AppError(
+      `Forbidden: Missing required scope(s): ${requiredScopes.join(" ")}`,
+      403,
+    );
+  }
+}
+

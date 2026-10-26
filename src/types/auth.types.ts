@@ -1,6 +1,8 @@
 export type Role = "admin" | "user";
 
-export interface AuthUser{
-    id:string,
-    role:Role
-}
+export interface AuthUser {
+  id: string;
+  role: Role;
+  scope?: string;
+  clientId?: string;
+}

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/AppError";
-import { verifyAccessToken, authorizeRoles } from "../auth/auth.core";
+import { verifyAccessToken, authorizeRoles, authorizeScopes } from "../auth/auth.core";
 
 export const Authenticate = (req: Request,res: Response,next: NextFunction,): void => {
   const auth = req.headers.authorization;
@@ -37,3 +37,14 @@ export const Authorize = (...roles: string[]) => {
     }
   };
 };
+
+export const RequireScope = (...scopes: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      authorizeScopes(req.user, ...scopes);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};

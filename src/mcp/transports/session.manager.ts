@@ -101,7 +101,7 @@ export class SessionManager {
     try {
       await session.server.close();
     } catch (err) {
-      console.error(`[MCP SessionManager] Error closing McpServer for session ${sessionId}:`, err);
+      console.error("[MCP SessionManager] Error closing McpServer for session %s:", sessionId, err);
     }
 
     return true;

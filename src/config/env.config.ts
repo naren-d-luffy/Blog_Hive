@@ -17,6 +17,7 @@ const envSchema = z.object({
   LOGIN_FAILURE_COUNT: z.coerce.number().min(1).default(3),
   LOCK_UNTIL_TIME: z.coerce.number().min(1).default(15),
 
+  REDIS_URL: z.string().url().optional(),
   REDIS_HOST: z.string().min(1, "Redis IP is required"),
   REDIS_PORT: z.string().min(4, "Redis PORT is required"),
 

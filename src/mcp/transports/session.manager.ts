@@ -43,7 +43,7 @@ export class SessionManager {
     // Auto-remove when transport itself closes internally
     transport.onclose = () => {
       this.closeSession(sessionId).catch((err) => {
-        console.error(`[MCP SessionManager] Error during transport onclose for ${sessionId}:`, err);
+        console.error("[MCP SessionManager] Error during transport onclose for %s:", sessionId, err);
       });
     };
 
@@ -95,7 +95,7 @@ export class SessionManager {
     try {
       await session.transport.close();
     } catch (err) {
-      console.error(`[MCP SessionManager] Error closing transport for session ${sessionId}:`, err);
+      console.error("[MCP SessionManager] Error closing transport for session %s:", sessionId, err);
     }
 
     try {
@@ -120,13 +120,13 @@ export class SessionManager {
       try {
         await session.transport.close();
       } catch (err) {
-        console.error(`[MCP SessionManager] Error closing transport for ${session.sessionId}:`, err);
+        console.error("[MCP SessionManager] Error closing transport for %s:", session.sessionId, err);
       }
 
       try {
         await session.server.close();
       } catch (err) {
-        console.error(`[MCP SessionManager] Error closing McpServer for ${session.sessionId}:`, err);
+        console.error("[MCP SessionManager] Error closing McpServer for %s:", session.sessionId, err);
       }
     }
   }

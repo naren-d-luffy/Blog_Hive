@@ -3,10 +3,13 @@ import { Document } from "mongoose";
 export interface IUser extends Document {
   name: string;
   email: string;
-  password: string;
+  password?: string;
+  authProvider?: "local" | "google";
+  googleId?: string | null;
+  avatar?: string | null;
   role: "user";
   status: "active" | "inactive";
-  isVerified: boolean,
+  isVerified: boolean;
 
   csrfToken: string | null;
   refreshToken: string | null;

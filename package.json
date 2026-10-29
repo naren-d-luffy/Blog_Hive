@@ -10,6 +10,7 @@
     "mcp:client": "ts-node --project tsconfig.mcp-client.json mcp-client.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "start:all": "concurrently \"npm run dev\" \"npm run mcp:start\"",
     "worker:blog": "ts-node src/queues/workers/blog.worker.ts",
     "worker:email": "ts-node src/queues/workers/email.worker.ts",
     "worker:log": "ts-node src/queues/workers/log.worker.ts",

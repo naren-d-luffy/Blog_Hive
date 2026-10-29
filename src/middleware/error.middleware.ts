@@ -36,6 +36,17 @@ const errorHandler = (
     message = "Duplicate field value entered";
   }
 
+  if (err.name === "ZodError" || (err as any).issues) {
+    statusCode = 400;
+    const issues = (err as any).issues;
+    if (Array.isArray(issues)) {
+      errors = issues.map((val: any) => val.message);
+      message = errors.join(", ") || "Validation failed";
+    } else {
+      message = "Validation failed";
+    }
+  }
+
   if (err.name === "ValidationError") {
     statusCode = 400;
     errors = Object.values((err as ValidationError).errors).map((val) => val.message);

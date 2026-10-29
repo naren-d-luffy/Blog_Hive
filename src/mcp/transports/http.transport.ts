@@ -10,6 +10,7 @@ import { SessionManager } from "./session.manager";
 import { createMcpServerInstance } from "../server.factory";
 import { verifyAccessToken } from "../../auth/auth.core";
 import { sanitizeBearerToken } from "../security/mcp.security.context";
+import { googleAuthService } from "../../modules/GoogleAuth/google.service";
 
 /**
  * Creates and configures the production-standard Express app for the MCP Streamable HTTP server.
@@ -51,7 +52,7 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
   });
 
   // ─── Authentication Middleware ─────────────────────────────────────────────
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
     const rawHeader =
       req.headers["authorization"] || req.headers["x-access-token"];
     const tokenStr = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
@@ -62,17 +63,29 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
         const user = verifyAccessToken(token);
         (req as any).auth = { token, user };
         (req as any).user = user;
-      } catch (err: any) {
-        if (mcpConfig.security.strictMode) {
-          res.status(401).json({
-            jsonrpc: "2.0",
-            error: {
-              code: -32000,
-              message: `Unauthorized: Invalid or expired access token (${err.message})`,
-            },
-            id: null,
-          });
-          return;
+      } catch (jwtErr: any) {
+        // Fallback: Check if token is a Google OAuth ID Token or Access Token
+        try {
+          const { user: googleUser } =
+            await googleAuthService.authenticateGoogleToken(token);
+          const user = {
+            id: googleUser._id.toString(),
+            role: googleUser.role,
+          };
+          (req as any).auth = { token, user };
+          (req as any).user = user;
+        } catch {
+          if (mcpConfig.security.strictMode) {
+            res.status(401).json({
+              jsonrpc: "2.0",
+              error: {
+                code: -32000,
+                message: `Unauthorized: Invalid or expired access token (${jwtErr.message})`,
+              },
+              id: null,
+            });
+            return;
+          }
         }
       }
     } else if (mcpConfig.security.strictMode && req.path === mcpConfig.http.endpoint) {

@@ -51,6 +51,17 @@ const envSchema = z.object({
   MCP_ALLOWED_HOSTS: z.string().optional().transform((val) =>  val ? val.split(",").map((host) => host.trim()).filter(Boolean) : undefined),
   MCP_ALLOWED_ORIGINS: z.string().optional().transform((val) => val ? val.split(",").map((origin) => origin.trim()).filter(Boolean) : ["*"]),
   MCP_STRICT_AUTH: z.enum(["true", "false"]).default("false").transform((val) => val === "true"),
+
+  // Google OAuth configuration
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_PROJECT_ID: z.string().optional(),
+  GOOGLE_AUTH_URI: z.string().default("https://accounts.google.com/o/oauth2/v2/auth"),
+  GOOGLE_TOKEN_URI: z.string().default("https://oauth2.googleapis.com/token"),
+  GOOGLE_USERINFO_URI: z.string().default("https://www.googleapis.com/oauth2/v3/userinfo"),
+  GOOGLE_CERTS_URI: z.string().default("https://www.googleapis.com/oauth2/v3/certs"),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
+  BACKEND_URL: z.string().url().default("http://localhost:3000"),
 });
 
 const parsed = envSchema.safeParse(process.env);

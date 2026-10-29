@@ -1,7 +1,9 @@
 import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { verifyAccessToken, authorizeRoles } from "../../auth/auth.core";
+import { AuthUser } from "../../types/auth.types";
 import AppError from "../../utils/AppError";
 import { McpSecurityContext, McpSecurityOptions } from "./mcp.security.types";
+import { googleAuthService } from "../../modules/GoogleAuth/google.service";
 
 /**
  * Strips 'Bearer ' prefix and trims excess whitespace from a raw token string.
@@ -120,8 +122,22 @@ export async function resolveSecurityContext(
     return null;
   }
 
-  // Validate the access token using auth.core.ts
-  const user = verifyAccessToken(rawToken);
+  // Validate the access token using auth.core.ts (with Google OAuth token fallback)
+  let user: AuthUser;
+  try {
+    user = verifyAccessToken(rawToken);
+  } catch (err: any) {
+    try {
+      const { user: googleUser } =
+        await googleAuthService.authenticateGoogleToken(rawToken);
+      user = {
+        id: googleUser._id.toString(),
+        role: googleUser.role,
+      };
+    } catch {
+      throw err;
+    }
+  }
 
   // Enforce role authorization if specified
   if (roles && roles.length > 0) {

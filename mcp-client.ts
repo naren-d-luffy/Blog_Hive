@@ -306,8 +306,9 @@ async function main(): Promise<void> {
           const decoded = verifyAccessToken(tokenArg);
           activeToken = tokenArg;
           console.log(`\n[client] Token set successfully! Verified as ${decoded.role} (${decoded.id})\n`);
-        } catch (e: any) {
-          console.error(`\n[client] Invalid token: ${e.message}\n`);
+        } catch {
+          activeToken = tokenArg;
+          console.log(`\n[client] Custom token activated (Will be verified by MCP server via Google OAuth / Bearer handler).\n`);
         }
         break;
       }
@@ -322,8 +323,8 @@ async function main(): Promise<void> {
             console.log(`\n[client] Authenticated user:`);
             console.log(`  ID:   ${user.id}`);
             console.log(`  Role: ${user.role}\n`);
-          } catch (e: any) {
-            console.log(`\n[client] Token is invalid or expired: ${e.message}\n`);
+          } catch {
+            console.log(`\n[client] Active token is a custom/Google OAuth token. Server validates it per request.\n`);
           }
         }
         break;

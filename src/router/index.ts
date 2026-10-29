@@ -4,6 +4,7 @@ import tokenRouter from "../modules/Token/token.router"
 import userRouter from "../modules/User/user.routes"
 import blogRouter from "../modules/Blog/blog.router"
 import loggerRouter from "../modules/Logger/logger.routes"
+import googleRouter from "../modules/GoogleAuth/google.routes"
 
 const router = express.Router();
 
@@ -13,6 +14,7 @@ const routes = [
     {path:"/user", route: userRouter},
     {path:"/blog", route: blogRouter},
     {path:"/logs", route: loggerRouter},
+    {path:"/auth/google", route: googleRouter},
 ]
 
 routes.forEach(route=> {

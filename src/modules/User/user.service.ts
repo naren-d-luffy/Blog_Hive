@@ -7,11 +7,13 @@ import { IUser } from "./user.interface";
 import { UserLoginInput, CreateUserInput } from "./user.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
-import {redisClient} from "../../config/redis.config";
-import generateToken from "../../utils/generateToken";
+import { redisClient } from "../../config/redis.config";
+import { generateToken, hashToken } from "../../utils/generateToken";
+import { tokenService } from "../Token/token.service";
+import { TokenType } from "../Token/token.interface";
+import { decodeCursor, encodeCursor } from "../../utils/Cursor/cursor";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
-const REFRESH_SECRET = env.REFRESH_TOKEN;
 const FAILURE_COUNT = env.LOGIN_FAILURE_COUNT;
 const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME * 60 * 1000;
 
@@ -25,6 +27,8 @@ export const userService = {
       role: user?.role,
       status: user?.status,
       lastLogin: user?.lastLogin,
+      avatar: user?.avatar,
+      authProvider: user?.authProvider,
     };
   },
 
@@ -35,35 +39,51 @@ export const userService = {
       password: hashed,
       role: "user",
       status: "active",
+      isVerified: false,
     });
+
+    await tokenService.createVerifyUserToken(newUser.email, newUser.id);
 
     return this.sanitizeUser(newUser);
   },
 
-  async findAllUser(page: number, limit: number) {
-    const cacheKey = `user:${page}:${limit}`;
+  async findAllUser(cursor: string | undefined, limit: number) {
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+
+    const cacheKey = `users:cursor:${cursor ?? "initial"}:limit:${limit}`;
     const cached = await redisClient.get(cacheKey);
+
     if (cached) {
       return JSON.parse(cached);
     }
 
-    const skip = (page - 1) * limit;
+    const data = await userRepository.findAll(decodedCursor, limit + 1);
 
-    const [data, total] = await Promise.all([
-      userRepository.findAll(skip, limit),
-      userRepository.count(),
-    ]);
-    const sanitizedData = data.map((user) => this.sanitizeUser(user));
+    const hasNextPage = data.length > limit;
+    const users = hasNextPage ? data.slice(0, limit) : data;
+
+    const sanitizedData = users.map((user) => this.sanitizeUser(user));
+
+    let nextCursor: string | null = null;
+
+    if (hasNextPage) {
+      const lastUser = users.at(-1)!;
+
+      nextCursor = encodeCursor({
+        createdAt: lastUser.createdAt.toISOString(),
+        id: lastUser._id.toString(),
+      });
+    }
 
     const result = {
       sanitizedData,
-      total,
-      page,
       limit,
-      totalPage: Math.ceil(total / limit),
+      hasNextPage,
+      nextCursor,
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
+    return result;
   },
 
   async findUserById(id: string) {
@@ -77,7 +97,7 @@ export const userService = {
     const result = await userRepository.findById(id);
     const sanitizedResult = this.sanitizeUser(result);
 
-    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult),"EX",60 );
+    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), "EX", 60);
 
     return sanitizedResult;
   },
@@ -97,6 +117,13 @@ export const userService = {
       throw new AppError("Account is locked, Try again later", 403);
     }
 
+    if (!user.password) {
+      throw new AppError(
+        "This account was created with Google Sign-In. Please sign in with Google or reset your password.",
+        400,
+      );
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       user.failedLoginAttempt += 1;
@@ -114,16 +141,17 @@ export const userService = {
 
     //CSRF Handler
     const csrfToken = generateToken({ length: 32 });
-    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    const hashedCsrf = hashToken(csrfToken);
     user.csrfToken = hashedCsrf;
 
     //Access and Refresh Handler
     const payload: AuthUser = { id: user.id, role: user.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
     user.refreshToken = hashedRefresh;
+    user.refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
     await userRepository.save(user);
 
     const safeData = this.sanitizeUser(user);
@@ -161,16 +189,18 @@ export const userService = {
 
   async postRefresh(user: { id: string; role: "user" }) {
     const csrfToken = generateToken({ length: 32 });
-    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    const hashedCsrf = hashToken(csrfToken);
 
     let payload: AuthUser = { id: user.id, role: user.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
+    const refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await userRepository.update(user.id, {
       refreshToken: hashedRefresh,
+      refreshTokenExpiryAt,
       csrfToken: hashedCsrf,
     });
 
@@ -184,6 +214,13 @@ export const userService = {
   ) {
     const user = await userRepository.getPasswordById(id);
     if (!user) throw new AppError("User not found", 400);
+
+    if (!user.password) {
+      throw new AppError(
+        "This account was created with Google Sign-In and does not have a local password set.",
+        400,
+      );
+    }
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 
@@ -208,5 +245,20 @@ export const userService = {
     });
     const sanitized = this.sanitizeUser(updatedUser);
     return sanitized;
+  },
+
+  async verifyUser(token: string) {
+    const verifiedData = await tokenService.verifyToken(
+      token,
+      TokenType.EMAIL_VERIFICATION,
+    );
+
+    if (!verifiedData || !verifiedData.user) {
+      throw new AppError("Invalid or malformed token", 400);
+    }
+
+    return await userRepository.update(verifiedData.user.toString(), {
+      isVerified: true,
+    });
   },
 };

@@ -8,22 +8,22 @@ import { calculatePopularity } from "../../utils/calculatePopularity";
 import { CreateBlogInput, UpdateBlogInput } from "./blog.validation";
 import { BLOG_JOBS } from "../../queues/blog.queue";
 import mongoose from "mongoose";
-import {redisClient} from "../../config/redis.config";
-
-// Types
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-}
+import { redisClient } from "../../config/redis.config";
+import { decodeCursor, encodeCursor } from "../../utils/Cursor/cursor";
+import type { CursorPaginationResult } from "../../types/cursor.types";
 
 const QUEUE_OPTS = {
   attempts: 3,
   backoff: { type: "exponential" as const, delay: 2000 },
+};
+
+const deleteCacheByPatterns = async (patterns: string[]) => {
+  for (const pattern of patterns) {
+    const keys = await redisClient.keys(pattern);
+    if (keys.length > 0) {
+      await redisClient.del(...keys);
+    }
+  }
 };
 
 // Service
@@ -49,25 +49,6 @@ export const blogService = {
     };
   },
 
-  // Pagination envelope
-  buildPaginatedResponse<T>(
-    data: T[],
-    total: number,
-    page: number,
-    limit: number,
-  ): PaginatedResult<T> {
-    const totalPages = Math.ceil(total / limit);
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
-    };
-  },
-
   // Create
   async createBlog(blogData: CreateBlogInput, id: string) {
     const slug = await generateUniqueSlug(blogData.heading);
@@ -78,143 +59,231 @@ export const blogService = {
       createdBy: new mongoose.Types.ObjectId(id),
     });
 
-    await Promise.all([
-      redisClient.del("allBlog:*"),
-      redisClient.del("allPopularBlog:*"),
+    await deleteCacheByPatterns([
+      "allBlog:*",
+      "allPopularBlog:*",
+      "allBlogByCategory:*",
+      "allBlogByTag:*",
+      "allBlogByAuthor:*",
+      "search:*",
     ]);
 
     return this.sanitizeBlog(newBlog);
   },
 
   // Read (lists)
-  async getAllBlogs(page: number, limit: number) {
-    const cacheKey = `allBlog:${page}:${limit}`;
+  async getAllBlogs(cursor: string | undefined, limit: number) {
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    const cacheKey = `allBlog:cursor:${cursor ?? "initial"}:limit:${limit}`;
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
-    const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findAll(skip, limit),
-      blogRepository.totalCount(),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
+
+    const rawData = await blogRepository.findAll(decodedCursor, limit + 1);
+    const hasNextPage = rawData.length > limit;
+    const blogs = hasNextPage ? rawData.slice(0, limit) : rawData;
+    const sanitizedData = blogs.map((b) => this.sanitizeBlog(b)!);
+
+    let nextCursor: string | null = null;
+    if (hasNextPage) {
+      const lastBlog = blogs.at(-1)!;
+      nextCursor = encodeCursor({
+        createdAt: lastBlog.createdAt.toISOString(),
+        id: lastBlog._id.toString(),
+      });
+    }
+
+    const result = {
+      sanitizedData,
       limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+      hasNextPage,
+      nextCursor,
+    };
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
-  async getAllByPopularity(page: number, limit: number) {
-    const cacheKey = `allPopularBlog:${page}:${limit}`;
+  async getAllByPopularity(cursor: string | undefined, limit: number) {
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    const cacheKey = `allPopularBlog:cursor:${cursor ?? "initial"}:limit:${limit}`;
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
-    const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findAllByPopularity(skip, limit),
-      blogRepository.totalCount(),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
+
+    const rawData = await blogRepository.findAllByPopularity(decodedCursor, limit + 1);
+    const hasNextPage = rawData.length > limit;
+    const blogs = hasNextPage ? rawData.slice(0, limit) : rawData;
+    const sanitizedData = blogs.map((b) => this.sanitizeBlog(b)!);
+
+    let nextCursor: string | null = null;
+    if (hasNextPage) {
+      const lastBlog = blogs.at(-1)!;
+      nextCursor = encodeCursor({
+        createdAt: lastBlog.createdAt.toISOString(),
+        id: lastBlog._id.toString(),
+        popularityScore: lastBlog.popularityScore ?? 0,
+      });
+    }
+
+    const result = {
+      sanitizedData,
       limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+      hasNextPage,
+      nextCursor,
+    };
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
-  async getAllByCategory(category: string, page: number, limit: number) {
-    const cacheKey = `allBlogByCategory:${category}:${page}:${limit}`;
+  async getAllByCategory(category: string, cursor: string | undefined, limit: number) {
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    const cacheKey = `allBlogByCategory:${category}:cursor:${cursor ?? "initial"}:limit:${limit}`;
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
-    const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findByCategory(category, skip, limit),
-      blogRepository.countByCategory(category),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
+
+    const rawData = await blogRepository.findByCategory(category, decodedCursor, limit + 1);
+    const hasNextPage = rawData.length > limit;
+    const blogs = hasNextPage ? rawData.slice(0, limit) : rawData;
+    const sanitizedData = blogs.map((b) => this.sanitizeBlog(b)!);
+
+    let nextCursor: string | null = null;
+    if (hasNextPage) {
+      const lastBlog = blogs.at(-1)!;
+      nextCursor = encodeCursor({
+        createdAt: lastBlog.createdAt.toISOString(),
+        id: lastBlog._id.toString(),
+      });
+    }
+
+    const result = {
+      sanitizedData,
       limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+      hasNextPage,
+      nextCursor,
+    };
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
-  async getAllByTag(tag: string, page: number, limit: number) {
-    const cacheKey = `allBlogByTag:${tag}:${page}:${limit}`;
+  async getAllByTag(tag: string, cursor: string | undefined, limit: number) {
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    const cacheKey = `allBlogByTag:${tag}:cursor:${cursor ?? "initial"}:limit:${limit}`;
     const cached = await redisClient.get(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
-    const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findByTag(tag, skip, limit),
-      blogRepository.countByTag(tag),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
+
+    const rawData = await blogRepository.findByTag(tag, decodedCursor, limit + 1);
+    const hasNextPage = rawData.length > limit;
+    const blogs = hasNextPage ? rawData.slice(0, limit) : rawData;
+    const sanitizedData = blogs.map((b) => this.sanitizeBlog(b)!);
+
+    let nextCursor: string | null = null;
+    if (hasNextPage) {
+      const lastBlog = blogs.at(-1)!;
+      nextCursor = encodeCursor({
+        createdAt: lastBlog.createdAt.toISOString(),
+        id: lastBlog._id.toString(),
+      });
+    }
+
+    const result = {
+      sanitizedData,
       limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+      hasNextPage,
+      nextCursor,
+    };
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
-  async getAllByAuthor(userId: string, page: number, limit: number) {
-    const cacheKey = `allBlogByAuthor:${userId}:${page}:${limit}`;
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
-    }
+  async getAllByAuthor(userId: string, cursor: string | undefined, limit: number) {
     checkId(userId);
-    const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      blogRepository.findByAuthor(userId, skip, limit),
-      blogRepository.countByAuthor(userId),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    const cacheKey = `allBlogByAuthor:${userId}:cursor:${cursor ?? "initial"}:limit:${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const rawData = await blogRepository.findByAuthor(userId, decodedCursor, limit + 1);
+    const hasNextPage = rawData.length > limit;
+    const blogs = hasNextPage ? rawData.slice(0, limit) : rawData;
+    const sanitizedData = blogs.map((b) => this.sanitizeBlog(b)!);
+
+    let nextCursor: string | null = null;
+    if (hasNextPage) {
+      const lastBlog = blogs.at(-1)!;
+      nextCursor = encodeCursor({
+        createdAt: lastBlog.createdAt.toISOString(),
+        id: lastBlog._id.toString(),
+      });
+    }
+
+    const result = {
+      sanitizedData,
       limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+      hasNextPage,
+      nextCursor,
+    };
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
-  async searchBlogs(query: string, page: number, limit: number) {
+  async searchBlogs(
+    query: string,
+    options: { cursor?: string; page?: number },
+    limit: number,
+  ) {
     if (!query || query.trim().length < 2)
       throw new AppError("Search query must be at least 2 characters", 400);
-    const skip = (page - 1) * limit;
+
     const trimmedQuery = query.trim();
-    const cacheKey = `search:${trimmedQuery}:${page}:${limit}`;
+    let skip = 0;
+
+    if (options.cursor) {
+      try {
+        const decoded = Buffer.from(options.cursor, "base64").toString("utf-8");
+        const parsed = JSON.parse(decoded);
+        if (typeof parsed.skip === "number" && parsed.skip >= 0) {
+          skip = parsed.skip;
+        } else {
+          throw new AppError("Invalid Cursor", 400);
+        }
+      } catch {
+        throw new AppError("Invalid Cursor", 400);
+      }
+    } else if (options.page && options.page > 0) {
+      skip = (options.page - 1) * limit;
+    }
+
+    const cacheKey = `search:${trimmedQuery}:cursor:${options.cursor ?? `skip_${skip}`}:limit:${limit}`;
     const cached = await redisClient.get(cacheKey);
     if (cached) {
-      console.log("Search cache hit");
       return JSON.parse(cached);
     }
-    const [data, total] = await Promise.all([
-      blogRepository.search(trimmedQuery, skip, limit),
-      blogRepository.countSearch(trimmedQuery),
-    ]);
-    const result = this.buildPaginatedResponse(
-      data.map((b) => this.sanitizeBlog(b)!),
-      total,
-      page,
+
+    const rawData = await blogRepository.search(trimmedQuery, skip, limit + 1);
+    const hasNextPage = rawData.length > limit;
+    const blogs = hasNextPage ? rawData.slice(0, limit) : rawData;
+    const sanitizedData = blogs.map((b) => this.sanitizeBlog(b)!);
+
+    let nextCursor: string | null = null;
+    if (hasNextPage) {
+      nextCursor = Buffer.from(JSON.stringify({ skip: skip + limit })).toString("base64");
+    }
+
+    const result = {
+      sanitizedData,
       limit,
-    );
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 30 );
+      hasNextPage,
+      nextCursor,
+    };
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 30);
     return result;
   },
 
@@ -281,13 +350,14 @@ export const blogService = {
     });
 
     if (!updated) throw new AppError("Blog update failed", 500);
-    await Promise.all([
-      redisClient.del("allBlog:*"),
-      redisClient.del("allPopularBlog:*"),
-      redisClient.del(`blog:${blogId}`),
-      redisClient.del("allBlogByCategory:*"),
-      redisClient.del("allBlogByTag:*"),
-      redisClient.del("search:*"),
+    await Promise.all([redisClient.del(`blog:${blogId}`), redisClient.del(`slug:${slug.trim()}`)]);
+    await deleteCacheByPatterns([
+      "allBlog:*",
+      "allPopularBlog:*",
+      "allBlogByCategory:*",
+      "allBlogByTag:*",
+      "allBlogByAuthor:*",
+      "search:*",
     ]);
 
     const newScore = calculatePopularity(updated);
@@ -300,7 +370,7 @@ export const blogService = {
   async deleteBlog(
     blogId: string,
     requesterId: string,
-    requesterRole: "User" | "Admin",
+    requesterRole: "user" | "admin",
   ) {
     checkId(blogId);
     checkId(requesterId);
@@ -309,22 +379,25 @@ export const blogService = {
     if (!existing) throw new AppError("Blog not found", 404);
 
     const isOwner = existing.createdBy.toString() === requesterId;
-    if (!isOwner && requesterRole !== "Admin")
+    if (!isOwner && requesterRole !== "admin")
       throw new AppError("Forbidden: you do not own this blog", 403);
+
+    const actorModel = requesterRole === "admin" ? "Admin" : "User";
 
     const deleted = await blogRepository.softDelete(
       blogId,
       requesterId,
-      requesterRole,
+      actorModel,
     );
     if (!deleted) throw new AppError("Blog deletion failed", 500);
-    await Promise.all([
-      redisClient.del("allBlog:*"),
-      redisClient.del("allPopularBlog:*"),
-      redisClient.del(`blog:${blogId}`),
-      redisClient.del("allBlogByCategory:*"),
-      redisClient.del("allBlogByTag:*"),
-      redisClient.del("search:*"),
+    await Promise.all([redisClient.del(`blog:${blogId}`), redisClient.del(`slug:${existing.slug.trim()}`)]);
+    await deleteCacheByPatterns([
+      "allBlog:*",
+      "allPopularBlog:*",
+      "allBlogByCategory:*",
+      "allBlogByTag:*",
+      "allBlogByAuthor:*",
+      "search:*",
     ]);
 
     return { id: blogId, deleted: true };

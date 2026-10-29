@@ -28,5 +28,12 @@ export const changePasswordSchema = z.object({
     .regex(/[0-9]/, "Must contain at least one number"),
 }).strict();
 
+export const verifyUserSchema = z.object({
+  token: z
+    .string()
+    .min(10, "Invalid token")
+    .max(200, "Invalid token"),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UserLoginInput = z.infer<typeof userLoginSchema>;

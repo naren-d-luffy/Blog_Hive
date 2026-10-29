@@ -7,11 +7,11 @@ import { IAdmin } from "./admin.interface";
 import { AdminLoginInput, CreateAdminInput } from "./admin.validator";
 import { AuthUser } from "../../types/auth.types";
 import checkId from "../../utils/CheckId";
-import {redisClient} from "../../config/redis.config";
-import generateToken from "../../utils/generateToken";
+import { redisClient } from "../../config/redis.config";
+import { generateToken, hashToken } from "../../utils/generateToken";
+import { decodeCursor, encodeCursor } from "../../utils/Cursor/cursor";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
-const REFRESH_SECRET = env.REFRESH_TOKEN;
 const FAILURE_COUNT = env.LOGIN_FAILURE_COUNT;
 const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME * 60 * 1000;
 
@@ -40,31 +40,42 @@ export const adminService = {
     return this.sanitizeAdmin(newAdmin);
   },
 
-  async findAllAdmin(page: number, limit: number) {
-    const cacheKey = `admins:${page}:${limit}`;
-
+  async findAllAdmin(cursor: string | undefined, limit: number) {
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    
+    const cacheKey = `admin:cursor:${cursor ?? "initial"}:limit:${limit}` 
     const cached = await redisClient.get(cacheKey);
+
     if (cached) {
       return JSON.parse(cached);
     }
 
-    const skip = (page - 1) * limit;
+    const data = await adminRepository.findAll(decodedCursor, limit+1);
 
-    const [data, total] = await Promise.all([
-      adminRepository.findAll(skip, limit),
-      adminRepository.count(),
-    ]);
-    const sanitizedData = data.map((admin) => this.sanitizeAdmin(admin));
+    const hasNextPage = data.length > limit;
+    const admins = hasNextPage ? data.slice(0,limit) : data;
+
+    const sanitizedData = admins.map((admin) => this.sanitizeAdmin(admin));
+
+    let nextCursor: string | null = null;
+
+    if(hasNextPage){
+      const lastUser = admins.at(-1)!;
+
+      nextCursor = encodeCursor({
+        createdAt: lastUser.createdAt.toISOString(),
+        id: lastUser._id.toString()
+      })
+    }
 
     const result = {
       sanitizedData,
-      total,
-      page,
       limit,
-      totalPage: Math.ceil(total / limit),
+      hasNextPage,
+      nextCursor
     };
 
-    await redisClient.set(cacheKey, JSON.stringify(result), "EX",60);
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
     return result;
   },
 
@@ -117,16 +128,18 @@ export const adminService = {
 
     //CSFR Handling
     const csrfToken = generateToken({ length: 32 });
-    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    const hashedCsrf = hashToken(csrfToken);
     admin.csrfToken = hashedCsrf;
 
     //Access and Refresh Token Handling
     const payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
+
     admin.refreshToken = hashedRefresh;
+    admin.refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await adminRepository.save(admin);
 
     const safeData = this.sanitizeAdmin(admin);
@@ -165,24 +178,26 @@ export const adminService = {
   async postRefresh(admin: { id: string; role: "admin" }) {
     //CSRF Handler
     const csrfToken = generateToken({ length: 32 });
-    const hashedCsrf = await bcrypt.hash(csrfToken, 10);
+    const hashedCsrf = hashToken(csrfToken);
 
     //Access and Refresh Handler
     let payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
+    const refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await adminRepository.update(admin.id, {
       refreshToken: hashedRefresh,
+      refreshTokenExpiryAt,
       csrfToken: hashedCsrf,
     });
 
     return { accessToken, refreshToken, csrfToken };
   },
 
-  async changePassword(id: string,currentPassword: string,newPassword: string) {
+  async changePassword(id: string, currentPassword: string, newPassword: string) {
     const admin = await adminRepository.getPasswordById(id);
     if (!admin) throw new AppError("Admin not found", 400);
 

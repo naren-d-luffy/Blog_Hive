@@ -32,23 +32,49 @@ return {1, tokens}
 `;
 
 let cachedSha: string | null = null;
+let loadingSha: Promise<string> | null = null;
+
+const loadScript = (): Promise<string> => {
+  if(!loadingSha){
+    loadingSha = (redisClient.script("LOAD", luaScript) as Promise<string>)
+      .then((sha) => {
+        cachedSha = sha;
+        return sha;
+      })
+      .finally(() => {
+        loadingSha = null;
+      })
+  }
+  return loadingSha;
+}
+
+const isNoScriptError = (err: unknown): boolean => err instanceof Error && err.message.includes("NOSCRIPT");
 
 export const createRateLimiter = (capacity: number, refillRate: number) => {
-  const consume = async (key: string) => {
-    const now = Date.now();
-
-    if (!cachedSha) {
-      cachedSha = await redisClient.script("LOAD", luaScript) as string;
-    }
-
-    const result = await redisClient.evalsha(
-      cachedSha,
+  const run = (sha: string, key:string, now:number) =>
+    redisClient.evalsha(
+      sha,
       1,
       key,
       capacity.toString(),
       refillRate.toString(),
-      now.toString()
-    ) as [number, number];
+      now.toString(),
+    ) as Promise<[number, number]>;
+
+  const consume = async (key: string) => {
+    const now = Date.now();
+    const sha = cachedSha ?? (await loadScript());
+
+    let result: [number, number];
+    try {
+      result = await run(sha, key, now);
+    } catch (err) {
+      if(!isNoScriptError(err)) throw err;
+
+      cachedSha = null;
+      const freshSha = await loadScript();
+      result = await run(freshSha, key, now);
+    }
 
     return {
       allowed: result[0] === 1,

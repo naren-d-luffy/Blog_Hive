@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 import env from "./env.config";
 
-const DB_URL = env.DB_URL;
-
-const connectDB = async (): Promise<void> => {
+const connectDB = async (uri?:string): Promise<void> => {
   try {
     mongoose.set("strictQuery", true);
 
+    const DB_URL = uri ?? env.DB_URL
+    
     const conn = await mongoose.connect(DB_URL, {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,

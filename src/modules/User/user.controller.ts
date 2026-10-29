@@ -1,15 +1,14 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, response } from "express";
 import { userService } from "./user.service";
-import { userLoginSchema, createUserSchema, changePasswordSchema } from "./user.validator";
+import {userLoginSchema,createUserSchema,changePasswordSchema,verifyUserSchema,} from "./user.validator";
 import env from "../../config/env.config";
 import AppError from "../../utils/AppError";
 import { str } from "../../utils/toString";
-
-type IdRequest = Request<{ id: string }>;
+import asyncHandler from "../../utils/asyncHandler";
+import parseCursorPagination from "../../utils/Cursor/parseCursor";
 
 export const userController = {
-  async createuser(req: Request, res: Response, next: NextFunction) {
-    try {
+  createuser: asyncHandler (async (req: Request, res: Response) => {
       const result = createUserSchema.safeParse(req.body);
       if (!result.success) {
         return res
@@ -23,54 +22,45 @@ export const userController = {
         message: "user Created Successfully",
         data: user,
       });
-    } catch (error) {
-      next(error);
-    }
-  },
+  }),
 
-  async getalluser(req: Request, res: Response, next: NextFunction) {
-    try {
-      const page = Math.max(1, parseInt(str(req.query.page) || "1", 10) || 1);
-      const limit = Math.min(100, parseInt(str(req.query.limit) || "10", 10) || 10);
+  getalluser: asyncHandler (async (req: Request, res: Response) => {
+      const {cursor, limit} = parseCursorPagination(req.query);
 
-      const result = await userService.findAllUser(page, limit);
+      const result = await userService.findAllUser(cursor, limit);
 
       res.status(200).json({
         success: true,
         message: "users fetched successfully",
         data: result.sanitizedData,
-        total: result.total,
+        pagination: {
+          limit: result.limit,
+          hasNextPage: result.hasNextPage,
+          nextCursor: result.nextCursor,
+        }
       });
-    } catch (error) {
-      next(error);
-    }
-  },
+  }),
 
-  async getuserById(req: Request, res: Response, next: NextFunction) {
-    try {
+  getuserById: asyncHandler (async (req: Request, res: Response) => {
       const id = req.user?.id;
 
       if (!id) {
-        return next(new AppError("Id is required", 400));
+        throw new AppError("Id is required", 400);
       }
 
       const fetcheduser = await userService.findUserById(id);
 
       if (!fetcheduser) {
-        return next(new AppError("user not Found or Deleted", 404));
+        throw new AppError("user not Found or Deleted", 404);
       }
       res.status(200).json({
         success: true,
         message: "user fetched successfully",
         data: fetcheduser,
       });
-    } catch (error) {
-      next(error);
-    }
-  },
+  }),
 
-  async login(req: Request, res: Response, next: NextFunction) {
-    try {
+  login: asyncHandler (async (req: Request, res: Response) => {
       const result = userLoginSchema.safeParse(req.body);
       if (!result.success) {
         return res
@@ -98,24 +88,20 @@ export const userController = {
         data: safeData,
         access: accessToken,
       });
-    } catch (error) {
-      next(error);
-    }
-  },
+  }),
 
-  async logout(req: Request, res: Response, next: NextFunction) {
-    try {
+  logout: asyncHandler (async (req: Request, res: Response) => {
       const id = req.user?.id;
 
       if (!id) {
-        return next(new AppError("Unauthorized", 401));
+        throw new AppError("Unauthorized", 401);
       }
 
       await userService.logoutUser(id);
 
       res.clearCookie("refreshToken", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: env.NODE_ENV === "production",
         sameSite: "strict",
       });
 
@@ -123,13 +109,9 @@ export const userController = {
         success: true,
         message: "Logged out Successfully",
       });
-    } catch (error) {
-      next(error);
-    }
-  },
+  }),
 
-  async updateStatus(req: IdRequest, res: Response, next: NextFunction) {
-    try {
+  updateStatus: asyncHandler (async (req: Request, res: Response) => {
       const id = str(req.params.id);
       const { status } = req.body;
 
@@ -138,14 +120,10 @@ export const userController = {
         success: true,
         message: "user status updated successfully",
         data: updated,
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
+      })
+  }),
 
-  async softDelete(req: IdRequest, res: Response, next: NextFunction) {
-    try {
+  softDelete: asyncHandler (async (req: Request, res: Response) => {
       const id = str(req.params.id);
 
       const deleted = await userService.softDelete(id);
@@ -155,13 +133,9 @@ export const userController = {
         message: "user deleted successfully",
         data: deleted,
       });
-    } catch (error) {
-      next(error);
-    }
-  },
+  }),
 
-  async refreshToken(req: Request, res: Response, next: NextFunction) {
-    try {
+  refreshToken: asyncHandler (async (req: Request, res: Response) => {
       const userDoc = req.authEntity;
       if (!userDoc || userDoc.role !== "user") {
         throw new AppError("Forbidden", 403);
@@ -191,23 +165,30 @@ export const userController = {
         message: "Tokens Refreshed Successfully",
         accessToken: accessToken,
       });
-    } catch (error) {
-      next(error);
-    }
-  },
+  }),
 
-  async changePassword(req:Request, res:Response, next:NextFunction) {
-      try {
+  changePassword: asyncHandler (async (req: Request, res: Response) => {
       const id = str(req.user?.id);
       const result = changePasswordSchema.parse(req.body);
-      const user = await userService.changePassword(id, result.currentPassword, result.newPassword);
+      const user = await userService.changePassword(
+        id,
+        result.currentPassword,
+        result.newPassword,
+      );
       res.status(200).json({
-        success:true,
-        message:"Password changed Successfully",
-        data: user
-      })
-      } catch (error) {
-        next(error)
-      }
-    }
+        success: true,
+        message: "Password changed Successfully",
+        data: user,
+      });
+  }),
+
+  verifyUser: asyncHandler (async (req: Request, res: Response) => {
+      const parsed = verifyUserSchema.parse(req.body);
+      if (!parsed.token)
+        return res
+          .status(401)
+          .json({ success: false, message: "Token is required." });
+      await userService.verifyUser(parsed.token);
+      res.status(201).json({ success: true, message: "User Verified SuccessFully" });
+  }),
 };

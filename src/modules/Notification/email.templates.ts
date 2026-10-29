@@ -248,7 +248,7 @@ const baseStyles = `
   }
 `;
 
-// ─── Shared shell ─────────────────────────────────────────────
+// Shared shell
 const shell = (content: string, year = new Date().getFullYear()) => `
 <!DOCTYPE html>
 <html lang="en">
@@ -278,7 +278,7 @@ const shell = (content: string, year = new Date().getFullYear()) => `
 </html>
 `;
 
-// ─── Logo partial ─────────────────────────────────────────────
+// Logo partial
 const logo = `
   <div class="logo">
     <div class="logo-icon">
@@ -290,10 +290,8 @@ const logo = `
   </div>
 `;
 
-// ─────────────────────────────────────────────────────────────
 export const emailTemplates = {
-
-  // ── 1. Admin Invite ────────────────────────────────────────
+  // 1. Admin Invite
   adminInvite: (inviteLink: string) => ({
     subject: "You've been invited to join as Admin",
     html: shell(`
@@ -336,44 +334,50 @@ export const emailTemplates = {
     `),
   }),
 
-  // ── 2. OTP ────────────────────────────────────────────────
-  otp: (otp: string) => ({
-    subject: `${otp} is your verification code`,
+  // 2. User Verification
+  verifyUser: (verificationLink: string) => ({
+    subject: `Verify your email address`,
     html: shell(`
-      <div class="header">
-        ${logo}
-        <div class="badge">Verification Required</div>
-        <h1>Here's your<br/><span>one-time code.</span></h1>
-        <p class="subtext">
-          Use the code below to complete your sign-in.
-          Never share this code with anyone — we'll never ask for it.
-        </p>
+    <div class="header">
+      ${logo}
+      <div class="badge">Verification Required</div>
+      <h1>Confirm your<br/><span>email address.</span></h1>
+      <p class="subtext">
+        Click the button below to verify your account and continue.
+        Never share this link with anyone — we'll never ask for it.
+      </p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="body">
+      <div class="otp-box">
+        <div class="otp-label">Secure Verification</div>
+
+        <a href="${verificationLink}" class="cta-btn">
+          Verify Email →
+        </a>
+
+        <div class="otp-timer">
+          This link expires in <strong>5 minutes</strong>
+        </div>
       </div>
 
-      <div class="divider"></div>
-
-      <div class="body">
-        <div class="otp-box">
-          <div class="otp-label">Your OTP Code</div>
-          <div class="otp-code">${otp}</div>
-          <div class="otp-timer">Expires in <strong>5 minutes</strong></div>
-        </div>
-
-        <div class="info-row">
-          <div class="info-icon">🔒</div>
-          <div>
-            <div class="info-label">Security tip</div>
-            <div class="info-value">
-              YourApp will never call or message you to ask for this code.
-              If you didn't request it, ignore this email — your account is safe.
-            </div>
+      <div class="info-row">
+        <div class="info-icon">🔒</div>
+        <div>
+          <div class="info-label">Security tip</div>
+          <div class="info-value">
+            YourApp will never call or message you to ask for this link.
+            If you didn’t request this, ignore this email — your account is safe.
           </div>
         </div>
       </div>
-    `),
+    </div>
+  `),
   }),
 
-  // ── 3. Welcome ────────────────────────────────────────────
+  // 3. Welcome
   welcome: (firstName: string, loginLink: string) => ({
     subject: `Welcome to YourApp, ${firstName} 🎉`,
     html: shell(`
@@ -419,7 +423,7 @@ export const emailTemplates = {
     `),
   }),
 
-  // ── 4. Forgot Password ─────────────────────────────────────
+  // 4. Forgot Password
   forgotPassword: (resetLink: string) => ({
     subject: "Reset your password",
     html: shell(`
@@ -462,5 +466,4 @@ export const emailTemplates = {
       </div>
     `),
   }),
-
 };

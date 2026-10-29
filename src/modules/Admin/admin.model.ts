@@ -9,8 +9,9 @@ const adminSchema = new Schema<IAdmin>(
     role: { type: String, default: "admin", enum: ["admin"] },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true,},
 
-    csrfToken: {type : String},
-    refreshToken: { type: String },
+    csrfToken: {type : String, select:false},
+    refreshToken: { type: String, select:false},
+    refreshTokenExpiryAt: {type: Date, select:false},
     isDeleted: { type: Boolean, default: false },
     deletedDate: { type: Date },
     lastLogin: { type: Date },
@@ -22,6 +23,7 @@ const adminSchema = new Schema<IAdmin>(
 );
 
 adminSchema.index({email:1},{unique:true});
+adminSchema.index({isDeletedAt:1, createdAt:-1, _id:-1})
 
 const Admin = mongoose.model<IAdmin>("Admin", adminSchema);
 export default Admin;

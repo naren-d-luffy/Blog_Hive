@@ -16,6 +16,12 @@ let activeSessionManager: SessionManager | undefined;
  * Supports both modern Streamable HTTP (production default) and STDIO.
  */
 async function bootstrap(): Promise<void> {
+  console.log("[MCP] Bootstrap starting");
+  console.log("[MCP] Transport:", mcpConfig.transport);
+  console.log("[MCP] PORT:", process.env.PORT);
+  console.log("[MCP] MCP_PORT:", mcpConfig.http.port);
+
+  console.log("[MCP] Connecting to MongoDB...");
   // 1. Connect MongoDB
   await connectDB();
   console.error("[MCP] MongoDB connected successfully");
@@ -47,7 +53,8 @@ async function startStreamableHttpServer(): Promise<void> {
   sessionManager.startIdleSweeper();
 
   const app = createMcpHttpApp(sessionManager);
-  const { port, host, endpoint } = mcpConfig.http;
+  const port = Number(process.env.PORT) || mcpConfig.http.port;
+  const { host, endpoint } = mcpConfig.http;
 
   httpServer = app.listen(port, host, () => {
     console.error(

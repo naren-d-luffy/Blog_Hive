@@ -5,6 +5,9 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn src/server.ts",
+    "mcp:start": "ts-node src/mcp/server.ts",
+    "mcp:dev": "ts-node-dev --respawn src/mcp/server.ts",
+    "mcp:client": "ts-node --project tsconfig.mcp-client.json mcp-client.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "worker:blog": "ts-node src/queues/workers/blog.worker.ts",
@@ -44,6 +47,7 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@types/jest": "^30.0.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.77.3",
@@ -52,6 +56,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "fs": "^0.0.1-security",
+    "google-auth-library": "^11.3.1",
     "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
     "jest": "^30.4.2",
@@ -65,7 +70,8 @@
     "slugify": "^1.6.9",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.5.0",
@@ -76,6 +82,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.9.5",
     "@types/nodemailer": "^8.0.0",
+    "@types/supertest": "^7.2.1",
     "concurrently": "^10.0.6",
     "ioredis-mock": "^8.13.1",
     "mongodb-memory-server": "^11.2.0",

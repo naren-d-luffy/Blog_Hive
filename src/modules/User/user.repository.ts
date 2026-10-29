@@ -31,6 +31,10 @@ export const userRepository = {
     return User.findOne({ email, isDeleted: false }).select("+password");
   },
 
+  findByGoogleId(googleId: string) {
+    return User.findOne({ googleId, isDeleted: false });
+  },
+
   findAll(cursor: Cursor | undefined, limit: number) {
     const filter: any = { isDeleted: false };
 

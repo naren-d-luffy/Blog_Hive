@@ -27,6 +27,8 @@ export const userService = {
       role: user?.role,
       status: user?.status,
       lastLogin: user?.lastLogin,
+      avatar: user?.avatar,
+      authProvider: user?.authProvider,
     };
   },
 
@@ -113,6 +115,13 @@ export const userService = {
 
     if (user.lockUntil && user.lockUntil.getTime() > Date.now()) {
       throw new AppError("Account is locked, Try again later", 403);
+    }
+
+    if (!user.password) {
+      throw new AppError(
+        "This account was created with Google Sign-In. Please sign in with Google or reset your password.",
+        400,
+      );
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -205,6 +214,13 @@ export const userService = {
   ) {
     const user = await userRepository.getPasswordById(id);
     if (!user) throw new AppError("User not found", 400);
+
+    if (!user.password) {
+      throw new AppError(
+        "This account was created with Google Sign-In and does not have a local password set.",
+        400,
+      );
+    }
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
 

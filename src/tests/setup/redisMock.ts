@@ -5,6 +5,7 @@ const redis = new Redis();
 jest.mock("../../config/redis.config", () => ({
     __esModule: true,
     default: redis,
+    redisClient: redis,
 }));
 
 beforeEach(async () => {

@@ -17,25 +17,20 @@ import {
   callbackHandler,
   tokenHandler,
   revokeHandler,
+  registerClientHandler,
 } from "./mcp.oauth.handlers";
 
 export function createOAuthRouter(): Router {
   const router = Router();
 
-  // The token and revoke endpoints accept application/x-www-form-urlencoded
-  // (OAuth spec default) as well as JSON.
   router.use(express.urlencoded({ extended: false }));
   router.use(express.json());
 
-  // RFC 8414 — Discovery (must live at root, not under /mcp/oauth/)
-  // This is mounted at app level: GET /.well-known/oauth-authorization-server
-  // (handled separately in http.transport.ts)
-
-  // OAuth endpoints under /oauth/
-  router.get("/authorize", authorizeHandler);
-  router.get("/callback",  callbackHandler);
-  router.post("/token",    tokenHandler);
-  router.post("/revoke",   revokeHandler);
+  router.get("/authorize",  authorizeHandler);
+  router.get("/callback",   callbackHandler);
+  router.post("/token",     tokenHandler);
+  router.post("/revoke",    revokeHandler);
+  router.post("/register",  registerClientHandler);  // RFC 7591 DCR
 
   return router;
 }

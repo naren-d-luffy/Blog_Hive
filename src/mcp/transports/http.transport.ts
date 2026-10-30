@@ -97,7 +97,7 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
     res.setHeader("Cache-Control", "public, max-age=3600, must-revalidate");
     res.json({
       resource: base,
-      authorization_servers: [`${base}`],
+      authorization_servers: [base],
       bearer_methods_supported: ["header"],
       resource_documentation: `${process.env.FRONTEND_URL}/docs/mcp`,
     });
@@ -160,21 +160,22 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
         }
       }
     } else if (req.path === mcpConfig.http.endpoint) {
-      // No token at all — always challenge with WWW-Authenticate so Claude
-      // knows to fetch and attach a Bearer token.
-      if (mcpConfig.security.strictMode) {
+      // No token — challenge with WWW-Authenticate so Claude triggers OAuth.
+      // Exception: initialize and server/discover are MCP handshake messages
+      // that must be allowed through unauthenticated so Claude can connect.
+      const bodyMethod = typeof req.body === "object" ? (req.body as any)?.method : null;
+      const isHandshake = bodyMethod === "initialize" || bodyMethod === "server/discover";
+
+      if (mcpConfig.security.strictMode && !isHandshake) {
         const issuer = `${process.env.BACKEND_URL}${mcpConfig.http.endpoint}`;
         res.setHeader(
           "WWW-Authenticate",
           `Bearer realm="${issuer}", ` +
-          `resource_metadata="${issuer}/.well-known/oauth-protected-resource"`,
+          `resource_metadata="${process.env.BACKEND_URL}${mcpConfig.http.endpoint}/.well-known/oauth-protected-resource"`,
         );
         res.status(401).json({
           jsonrpc: "2.0",
-          error: {
-            code: -32000,
-            message: "Unauthorized: Bearer token required.",
-          },
+          error: { code: -32000, message: "Unauthorized: Bearer token required." },
           id: null,
         });
         return;

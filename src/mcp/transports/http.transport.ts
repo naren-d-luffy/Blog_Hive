@@ -160,26 +160,9 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
         }
       }
     } else if (req.path === mcpConfig.http.endpoint) {
-      // No token — challenge with WWW-Authenticate so Claude triggers OAuth.
-      // Exception: initialize and server/discover are MCP handshake messages
-      // that must be allowed through unauthenticated so Claude can connect.
-      const bodyMethod = typeof req.body === "object" ? (req.body as any)?.method : null;
-      const isHandshake = bodyMethod === "initialize" || bodyMethod === "server/discover";
-
-      if (mcpConfig.security.strictMode && !isHandshake) {
-        const issuer = `${process.env.BACKEND_URL}${mcpConfig.http.endpoint}`;
-        res.setHeader(
-          "WWW-Authenticate",
-          `Bearer realm="${issuer}", ` +
-          `resource_metadata="${process.env.BACKEND_URL}/.well-known/oauth-protected-resource"`,
-        );
-        res.status(401).json({
-          jsonrpc: "2.0",
-          error: { code: -32000, message: "Unauthorized: Bearer token required." },
-          id: null,
-        });
-        return;
-      }
+      // No token on non-initialize requests — log it but let it through.
+      // Action calls (tools/call etc.) are challenged in the session handler below.
+      console.error(`[MCP AUTH DEBUG] No token on ${typeof req.body === "object" ? (req.body as any)?.method : "unknown"}`);
     }
 
     next();
@@ -257,6 +240,25 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
 
       // 2. New Initialization Request
       if (isInitializeRequest(req.body)) {
+
+        // If strict auth is on and no token provided, challenge immediately.
+        // Claude Desktop will trigger OAuth, get a token, and retry initialize
+        // with Authorization: Bearer — the correct flow per MCP 2025 spec.
+        if (mcpConfig.security.strictMode && !(req as any).auth) {
+          const issuer = `${process.env.BACKEND_URL}${mcpConfig.http.endpoint}`;
+          res.setHeader(
+            "WWW-Authenticate",
+            `Bearer realm="${issuer}", ` +
+            `resource_metadata="${process.env.BACKEND_URL}/.well-known/oauth-protected-resource"`,
+          );
+          res.status(401).json({
+            jsonrpc: "2.0",
+            error: { code: -32000, message: "Unauthorized: Bearer token required." },
+            id: null,
+          });
+          return;
+        }
+
         if (sessionManager.size >= mcpConfig.http.maxSessions) {
           res.status(503).json({
             jsonrpc: "2.0",

@@ -22,15 +22,18 @@ import { createOAuthRouter } from "../oauth/mcp.oauth.router";
  * will find it at check #1 (extra._meta.authorization) inside every tool/resource/prompt handler.
  */
 function injectAuthIntoBody(body: unknown, token: string | undefined): unknown {
-  if (!token || typeof body !== "object" || body === null) return body;
+  if (!token || typeof body !== "object" || body === null) {
+    console.error(`[MCP AUTH DEBUG] injectAuthIntoBody skipped — token=${!!token} bodyType=${typeof body}`);
+    return body;
+  }
 
   const rpc = body as Record<string, unknown>;
-
-  // Only inject into method calls that have params (tool calls, resource reads, prompts)
   if (typeof rpc.method !== "string") return body;
 
   const params = (rpc.params ?? {}) as Record<string, unknown>;
   const meta = (params["_meta"] ?? {}) as Record<string, unknown>;
+
+  console.error(`[MCP AUTH DEBUG] injectAuthIntoBody — method=${rpc.method} injecting token`);
 
   return {
     ...rpc,
@@ -98,11 +101,23 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
     const tokenStr = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
     const token = sanitizeBearerToken(tokenStr);
 
+    // ── DEBUG: remove after diagnosis ──────────────────────────────────────
+    if (req.path === mcpConfig.http.endpoint && req.method === "POST") {
+      console.error(
+        `[MCP AUTH DEBUG] path=${req.path} method=${req.method} ` +
+        `hasAuthHeader=${!!rawHeader} tokenPresent=${!!token} ` +
+        `sessionId=${req.headers["mcp-session-id"] ?? "none"} ` +
+        `body.method=${typeof req.body === "object" ? (req.body as any)?.method : "n/a"}`,
+      );
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     if (token) {
       try {
         const user = verifyAccessToken(token);
         (req as any).auth = { token, user };
         (req as any).user = user;
+        console.error(`[MCP AUTH DEBUG] JWT verified OK — userId=${user.id} role=${user.role}`);
       } catch (jwtErr: any) {
         // Fallback: Check if token is a Google OAuth ID Token or Access Token
         try {
@@ -114,7 +129,11 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
           };
           (req as any).auth = { token, user };
           (req as any).user = user;
-        } catch {
+          console.error(`[MCP AUTH DEBUG] Google token verified OK — userId=${user.id}`);
+        } catch (googleErr: any) {
+          console.error(
+            `[MCP AUTH DEBUG] Token verification FAILED — jwtErr=${jwtErr.message} googleErr=${googleErr.message}`,
+          );
           if (mcpConfig.security.strictMode) {
             res.status(401).json({
               jsonrpc: "2.0",
@@ -185,6 +204,7 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
         // Inject the verified token into the JSON-RPC body _meta so tool
         // handlers can read it via extra.requestInfo or extra._meta
         const enrichedBody = injectAuthIntoBody(req.body, (req as any).auth?.token);
+        console.error(`[MCP AUTH DEBUG] POST existing session — auth=${!!(req as any).auth} token=${!!(req as any).auth?.token}`);
 
         sessionManager.trackResponse(session, res);
         await session.transport.handleRequest(req, res, enrichedBody);

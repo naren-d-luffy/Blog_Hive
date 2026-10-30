@@ -150,6 +150,7 @@ export async function buildAuthorizationRedirectUrl(params: {
     codeChallengeMethod: "S256",
     redirectUri: params.redirectUri,
     scope: validScope,
+    clientState: params.state,   // ← store Claude's original state to echo back
     googleCodeVerifier,
     googleState,
     createdAt: Date.now(),

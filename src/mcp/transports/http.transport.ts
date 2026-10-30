@@ -11,6 +11,8 @@ import { createMcpServerInstance } from "../server.factory";
 import { verifyAccessToken } from "../../auth/auth.core";
 import { sanitizeBearerToken } from "../security/mcp.security.context";
 import { googleAuthService } from "../../modules/GoogleAuth/google.service";
+import { discoveryHandler } from "../oauth/mcp.oauth.handlers";
+import { createOAuthRouter } from "../oauth/mcp.oauth.router";
 
 /**
  * Creates and configures the production-standard Express app for the MCP Streamable HTTP server.
@@ -20,6 +22,8 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
     host: mcpConfig.http.host,
     allowedHosts: mcpConfig.http.allowedHosts,
   });
+
+  const endpoint = mcpConfig.http.endpoint;
 
   // ─── Production CORS Middleware ─────────────────────────────────────────────
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -50,6 +54,12 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
 
     next();
   });
+
+  // ─── RFC 8414 Discovery — must be at root, unauthenticated ─────────────────
+  app.get("/.well-known/oauth-authorization-server", discoveryHandler);
+
+  // ─── OAuth 2.0 AS endpoints (/oauth/authorize, /callback, /token, /revoke) ──
+  app.use(`${endpoint}/oauth`, createOAuthRouter());
 
   // ─── Authentication Middleware ─────────────────────────────────────────────
   app.use(async (req: Request, res: Response, next: NextFunction) => {
@@ -118,8 +128,6 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
       timestamp: new Date().toISOString(),
     });
   });
-
-  const endpoint = mcpConfig.http.endpoint;
 
   // ─── POST /mcp (JSON-RPC requests & Session Initialization) ──────────────────
   app.post(endpoint, async (req: Request, res: Response): Promise<void> => {

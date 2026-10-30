@@ -1,4 +1,5 @@
 import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
+import jwt from "jsonwebtoken";
 import { verifyAccessToken, authorizeRoles } from "../../auth/auth.core";
 import { AuthUser } from "../../types/auth.types";
 import AppError from "../../utils/AppError";
@@ -125,17 +126,28 @@ export async function resolveSecurityContext(
   // Validate the access token using auth.core.ts (with Google OAuth token fallback)
   let user: AuthUser;
   try {
+    // First try standard app JWT, then try MCP OAuth AS JWT (aud: "mcp")
     user = verifyAccessToken(rawToken);
   } catch (err: any) {
     try {
-      const { user: googleUser } =
-        await googleAuthService.authenticateGoogleToken(rawToken);
-      user = {
-        id: googleUser._id.toString(),
-        role: googleUser.role,
-      };
+      // Try MCP-issued OAuth JWT (has aud="mcp" claim, same signing key)
+      const decoded = jwt.verify(rawToken, process.env.ACCESS_TOKEN!) as any;
+      if (decoded && typeof decoded.id === "string" && typeof decoded.role === "string") {
+        user = { id: decoded.id, role: decoded.role };
+      } else {
+        throw new Error("Invalid MCP OAuth token payload");
+      }
     } catch {
-      throw err;
+      try {
+        const { user: googleUser } =
+          await googleAuthService.authenticateGoogleToken(rawToken);
+        user = {
+          id: googleUser._id.toString(),
+          role: googleUser.role,
+        };
+      } catch {
+        throw err;
+      }
     }
   }
 

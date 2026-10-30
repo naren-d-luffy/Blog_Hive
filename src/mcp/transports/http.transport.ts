@@ -171,7 +171,7 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
         res.setHeader(
           "WWW-Authenticate",
           `Bearer realm="${issuer}", ` +
-          `resource_metadata="${process.env.BACKEND_URL}${mcpConfig.http.endpoint}/.well-known/oauth-protected-resource"`,
+          `resource_metadata="${process.env.BACKEND_URL}/.well-known/oauth-protected-resource"`,
         );
         res.status(401).json({
           jsonrpc: "2.0",
@@ -224,9 +224,31 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
         }
 
         // Inject the verified token into the JSON-RPC body _meta so tool
-        // handlers can read it via extra.requestInfo or extra._meta
+        // handlers can read it via extra._meta.authorization
         const enrichedBody = injectAuthIntoBody(req.body, (req as any).auth?.token);
         console.error(`[MCP AUTH DEBUG] POST existing session — auth=${!!(req as any).auth} token=${!!(req as any).auth?.token}`);
+
+        // For action calls (tools/call, resources/read, prompts/get) with no token,
+        // issue a WWW-Authenticate challenge so Claude triggers the OAuth flow.
+        const bodyMethod = typeof req.body === "object" ? (req.body as any)?.method : null;
+        const isActionCall = bodyMethod === "tools/call"
+          || bodyMethod === "resources/read"
+          || bodyMethod === "prompts/get";
+
+        if (isActionCall && !(req as any).auth && mcpConfig.security.strictMode) {
+          const issuer = `${process.env.BACKEND_URL}${mcpConfig.http.endpoint}`;
+          res.setHeader(
+            "WWW-Authenticate",
+            `Bearer realm="${issuer}", ` +
+            `resource_metadata="${process.env.BACKEND_URL}/.well-known/oauth-protected-resource"`,
+          );
+          res.status(401).json({
+            jsonrpc: "2.0",
+            error: { code: -32000, message: "Unauthorized: Bearer token required." },
+            id: null,
+          });
+          return;
+        }
 
         sessionManager.trackResponse(session, res);
         await session.transport.handleRequest(req, res, enrichedBody);

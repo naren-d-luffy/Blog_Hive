@@ -19,8 +19,13 @@ import {
 import {
   OAuthServerMetadata,
   OAuthErrorResponse,
+  DcrRegistrationRequest,
+  DcrRegistrationResponse,
+  StoredOAuthClient,
   SUPPORTED_SCOPES,
 } from "./mcp.oauth.types";
+import { saveOAuthClient } from "./mcp.oauth.store";
+import crypto from "node:crypto";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -62,6 +67,7 @@ export function discoveryHandler(_req: Request, res: Response): void {
     authorization_endpoint:  `${base}/oauth/authorize`,
     token_endpoint:          `${base}/oauth/token`,
     revocation_endpoint:     `${base}/oauth/revoke`,
+    registration_endpoint:   `${base}/oauth/register`,
     response_types_supported:              ["code"],
     grant_types_supported:                 ["authorization_code", "refresh_token"],
     code_challenge_methods_supported:      ["S256"],
@@ -293,4 +299,57 @@ export async function revokeHandler(req: Request, res: Response): Promise<void> 
     console.error("[MCP OAuth] revoke error (non-fatal):", err);
     res.status(200).json({ revoked: true });
   }
+}
+
+// ─── RFC 7591 — Dynamic Client Registration ───────────────────────────────────
+
+/**
+ * POST /oauth/register
+ *
+ * Accepts any well-formed registration request and returns a client_id.
+ * No client secret is issued — this AS uses public clients only (PKCE).
+ * Client metadata is stored in Redis for 90 days and refreshed on re-registration.
+ */
+export async function registerClientHandler(req: Request, res: Response): Promise<void> {
+  const body = req.body as DcrRegistrationRequest;
+
+  if (!body.redirect_uris || !Array.isArray(body.redirect_uris) || body.redirect_uris.length === 0) {
+    res.status(400).json({
+      error: "invalid_client_metadata",
+      error_description: "redirect_uris is required and must be a non-empty array.",
+    });
+    return;
+  }
+
+  // Generate a stable client_id deterministically from the first redirect_uri
+  // so re-registrations from the same client return the same ID
+  const clientId = crypto
+    .createHash("sha256")
+    .update(body.redirect_uris[0])
+    .digest("hex")
+    .slice(0, 32);
+
+  const client: StoredOAuthClient = {
+    clientId,
+    clientName: body.client_name,
+    redirectUris: body.redirect_uris,
+    scope: body.scope ?? "mcp:read mcp:write",
+    registeredAt: Date.now(),
+  };
+
+  await saveOAuthClient(client);
+
+  const response: DcrRegistrationResponse = {
+    client_id: clientId,
+    client_name: body.client_name,
+    redirect_uris: body.redirect_uris,
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
+    token_endpoint_auth_method: "none",
+    scope: client.scope,
+    client_id_issued_at: Math.floor(client.registeredAt / 1000),
+  };
+
+  // RFC 7591 §3.2 — 201 Created on successful registration
+  res.status(201).json(response);
 }

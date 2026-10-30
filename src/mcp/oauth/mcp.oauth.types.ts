@@ -14,12 +14,47 @@ export interface OAuthServerMetadata {
   authorization_endpoint: string;
   token_endpoint: string;
   revocation_endpoint: string;
+  registration_endpoint: string;
   response_types_supported: string[];
   grant_types_supported: string[];
   code_challenge_methods_supported: string[];
   token_endpoint_auth_methods_supported: string[];
   scopes_supported: string[];
   service_documentation?: string;
+}
+
+// ─── Dynamic Client Registration (RFC 7591) ───────────────────────────────────
+
+export interface DcrRegistrationRequest {
+  client_name?: string;
+  redirect_uris: string[];
+  grant_types?: string[];
+  response_types?: string[];
+  token_endpoint_auth_method?: string;
+  scope?: string;
+}
+
+export interface DcrRegistrationResponse {
+  client_id: string;
+  client_name?: string;
+  redirect_uris: string[];
+  grant_types: string[];
+  response_types: string[];
+  token_endpoint_auth_method: string;
+  scope: string;
+  client_id_issued_at: number;
+}
+
+/**
+ * Stored in Redis for registered OAuth clients.
+ * Key: mcp:oauth:client:{clientId}  TTL: 90 days (re-registered on each connect)
+ */
+export interface StoredOAuthClient {
+  clientId: string;
+  clientName?: string;
+  redirectUris: string[];
+  scope: string;
+  registeredAt: number;
 }
 
 // ─── Stored State ─────────────────────────────────────────────────────────────

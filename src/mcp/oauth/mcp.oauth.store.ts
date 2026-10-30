@@ -144,3 +144,25 @@ export async function revokeRefreshToken(raw: string): Promise<void> {
   const hash = hashRefreshToken(raw);
   await redisClient.del(refreshKey(hash));
 }
+
+// ─── Dynamic Client Registration ──────────────────────────────────────────────
+
+const MCP_OAUTH_CLIENT_TTL_SEC = 60 * 60 * 24 * 90; // 90 days
+const clientKey = (clientId: string) => `mcp:oauth:client:${clientId}`;
+
+import { StoredOAuthClient } from "./mcp.oauth.types";
+
+export async function saveOAuthClient(client: StoredOAuthClient): Promise<void> {
+  await redisClient.set(
+    clientKey(client.clientId),
+    JSON.stringify(client),
+    "EX",
+    MCP_OAUTH_CLIENT_TTL_SEC,
+  );
+}
+
+export async function getOAuthClient(clientId: string): Promise<StoredOAuthClient | null> {
+  const raw = await redisClient.get(clientKey(clientId));
+  if (!raw) return null;
+  return JSON.parse(raw) as StoredOAuthClient;
+}

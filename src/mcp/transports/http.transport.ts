@@ -93,11 +93,14 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
 
   // ─── RFC 9728 Protected Resource Metadata — tells Claude where the AS lives ──
   app.get("/.well-known/oauth-protected-resource", (_req: Request, res: Response) => {
-    const base = `${process.env.BACKEND_URL}${endpoint}`;
+    const resource = `${process.env.BACKEND_URL}${endpoint}`;
+    // authorization_servers must be the base URL of the AS — Claude appends
+    // /.well-known/oauth-authorization-server to discover the AS metadata.
+    const asBaseUrl = `${process.env.BACKEND_URL}`;
     res.setHeader("Cache-Control", "public, max-age=3600, must-revalidate");
     res.json({
-      resource: base,
-      authorization_servers: [base],
+      resource,
+      authorization_servers: [asBaseUrl],
       bearer_methods_supported: ["header"],
       resource_documentation: `${process.env.FRONTEND_URL}/docs/mcp`,
     });

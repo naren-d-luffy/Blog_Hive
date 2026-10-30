@@ -15,6 +15,36 @@ import { discoveryHandler } from "../oauth/mcp.oauth.handlers";
 import { createOAuthRouter } from "../oauth/mcp.oauth.router";
 
 /**
+ * Injects the verified Bearer token into the JSON-RPC request body's params._meta.
+ *
+ * The MCP SDK does not forward HTTP headers into tool handler extras for the
+ * Streamable HTTP transport. Injecting the token here means extractTokenFromRequest
+ * will find it at check #1 (extra._meta.authorization) inside every tool/resource/prompt handler.
+ */
+function injectAuthIntoBody(body: unknown, token: string | undefined): unknown {
+  if (!token || typeof body !== "object" || body === null) return body;
+
+  const rpc = body as Record<string, unknown>;
+
+  // Only inject into method calls that have params (tool calls, resource reads, prompts)
+  if (typeof rpc.method !== "string") return body;
+
+  const params = (rpc.params ?? {}) as Record<string, unknown>;
+  const meta = (params["_meta"] ?? {}) as Record<string, unknown>;
+
+  return {
+    ...rpc,
+    params: {
+      ...params,
+      _meta: {
+        ...meta,
+        authorization: `Bearer ${token}`,
+      },
+    },
+  };
+}
+
+/**
  * Creates and configures the production-standard Express app for the MCP Streamable HTTP server.
  */
 export function createMcpHttpApp(sessionManager: SessionManager) {
@@ -152,8 +182,12 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
           return;
         }
 
+        // Inject the verified token into the JSON-RPC body _meta so tool
+        // handlers can read it via extra.requestInfo or extra._meta
+        const enrichedBody = injectAuthIntoBody(req.body, (req as any).auth?.token);
+
         sessionManager.trackResponse(session, res);
-        await session.transport.handleRequest(req, res, req.body);
+        await session.transport.handleRequest(req, res, enrichedBody);
         return;
       }
 
@@ -189,7 +223,8 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
         initializedServer = createMcpServerInstance();
         await initializedServer.connect(transport);
 
-        await transport.handleRequest(req, res, req.body);
+        const enrichedInitBody = injectAuthIntoBody(req.body, (req as any).auth?.token);
+        await transport.handleRequest(req, res, enrichedInitBody);
         return;
       }
 

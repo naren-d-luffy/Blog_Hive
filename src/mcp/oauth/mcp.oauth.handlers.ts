@@ -178,13 +178,11 @@ export async function callbackHandler(req: Request, res: Response): Promise<void
   try {
     const { redirectUri, code: authCode, oauthState } = await handleGoogleCallback({ code, state });
 
-    // Redirect back to Claude Desktop with our authorization code
-    const params = new URLSearchParams({
-      code: authCode,
-    });
-    // Echo the state the MCP client originally sent (not our Google state)
-    // We stored it in the oauth state under `oauthState` but we don't have the original client state here.
-    // Claude Desktop does not require it to be echoed for loopback flows — but if a state was passed we include it.
+    // Redirect back to Claude with the auth code AND the original state it sent
+    const params = new URLSearchParams({ code: authCode });
+    if (oauthState.clientState) {
+      params.set("state", oauthState.clientState);
+    }
 
     res.redirect(`${redirectUri}?${params.toString()}`);
   } catch (err) {

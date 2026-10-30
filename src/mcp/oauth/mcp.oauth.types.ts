@@ -74,6 +74,8 @@ export interface StoredMcpOAuthState {
   redirectUri: string;
   /** Scope requested by the MCP client */
   scope: string;
+  /** The original state param Claude sent — must be echoed back */
+  clientState: string;
   /** Internal PKCE code verifier used for the Google → us leg */
   googleCodeVerifier: string;
   /** Google's opaque state value we generated */

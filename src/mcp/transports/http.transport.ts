@@ -91,6 +91,18 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
   // ─── RFC 8414 Discovery — must be at root, unauthenticated ─────────────────
   app.get("/.well-known/oauth-authorization-server", discoveryHandler);
 
+  // ─── RFC 9728 Protected Resource Metadata — tells Claude where the AS lives ──
+  app.get("/.well-known/oauth-protected-resource", (_req: Request, res: Response) => {
+    const base = `${process.env.BACKEND_URL}${endpoint}`;
+    res.setHeader("Cache-Control", "public, max-age=3600, must-revalidate");
+    res.json({
+      resource: base,
+      authorization_servers: [`${base}`],
+      bearer_methods_supported: ["header"],
+      resource_documentation: `${process.env.FRONTEND_URL}/docs/mcp`,
+    });
+  });
+
   // ─── OAuth 2.0 AS endpoints (/oauth/authorize, /callback, /token, /revoke) ──
   app.use(`${endpoint}/oauth`, createOAuthRouter());
 
@@ -147,17 +159,26 @@ export function createMcpHttpApp(sessionManager: SessionManager) {
           }
         }
       }
-    } else if (mcpConfig.security.strictMode && req.path === mcpConfig.http.endpoint) {
-      res.status(401).json({
-        jsonrpc: "2.0",
-        error: {
-          code: -32000,
-          message:
-            "Unauthorized: Bearer token is required in Authorization header when MCP_STRICT_AUTH=true",
-        },
-        id: null,
-      });
-      return;
+    } else if (req.path === mcpConfig.http.endpoint) {
+      // No token at all — always challenge with WWW-Authenticate so Claude
+      // knows to fetch and attach a Bearer token.
+      if (mcpConfig.security.strictMode) {
+        const issuer = `${process.env.BACKEND_URL}${mcpConfig.http.endpoint}`;
+        res.setHeader(
+          "WWW-Authenticate",
+          `Bearer realm="${issuer}", ` +
+          `resource_metadata="${issuer}/.well-known/oauth-protected-resource"`,
+        );
+        res.status(401).json({
+          jsonrpc: "2.0",
+          error: {
+            code: -32000,
+            message: "Unauthorized: Bearer token required.",
+          },
+          id: null,
+        });
+        return;
+      }
     }
 
     next();

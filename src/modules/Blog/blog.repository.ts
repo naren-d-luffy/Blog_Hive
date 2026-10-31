@@ -1,5 +1,6 @@
 import { IBlog } from "./blog.interface";
 import Blog from "./blog.model";
+import type { Cursor } from "../../types/cursor.types";
 
 export const blogRepository = {
   create(data: Partial<IBlog>) {
@@ -7,59 +8,160 @@ export const blogRepository = {
   },
 
   findById(id: string) {
-    return Blog.findById({ _id: id, isDeleted: false });
+    return Blog.findOne({ _id: id, isDeleted: false });
   },
 
   findBySlug(slug: string) {
     return Blog.findOne({ slug, isDeleted: false });
   },
 
-  findAll(skip: number, limit: number) {
-    return Blog.find({ isDeleted: false, status: "published" })
-      .sort({ createdAt: -1 })
-      .skip(skip)
+  findAll(cursor: Cursor | undefined, limit: number) {
+    const filter: any = { isDeleted: false, status: "published" };
+
+    if (cursor) {
+      filter.$or = [
+        {
+          createdAt: {
+            $lt: new Date(cursor.createdAt),
+          },
+        },
+        {
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: cursor.id },
+        },
+      ];
+    }
+
+    return Blog.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .lean();
   },
 
-  findByCategory(category: string, skip: number, limit: number) {
-    return Blog.find({
+  findByCategory(category: string, cursor: Cursor | undefined, limit: number) {
+    const filter: any = {
       isDeleted: false,
       status: "published",
       category,
-    })
-      .sort({ createdAt: -1 })
-      .skip(skip)
+    };
+
+    if (cursor) {
+      filter.$or = [
+        {
+          createdAt: {
+            $lt: new Date(cursor.createdAt),
+          },
+        },
+        {
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: cursor.id },
+        },
+      ];
+    }
+
+    return Blog.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .lean();
   },
 
-  findByTag(tag: string, skip: number, limit: number) {
-    return Blog.find({
+  findByTag(tag: string, cursor: Cursor | undefined, limit: number) {
+    const filter: any = {
       isDeleted: false,
       status: "published",
       tags: tag,
-    })
-      .sort({ createdAt: -1 })
-      .skip(skip)
+    };
+
+    if (cursor) {
+      filter.$or = [
+        {
+          createdAt: {
+            $lt: new Date(cursor.createdAt),
+          },
+        },
+        {
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: cursor.id },
+        },
+      ];
+    }
+
+    return Blog.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .lean();
   },
 
-  findAllByPolularity(skip: number, limit: number) {
-    return Blog.find({ isDeleted: false, status: "published" })
-      .sort({ popularityScore: -1, createdAt: -1 })
-      .skip(skip)
+  findAllByPopularity(cursor: Cursor | undefined, limit: number) {
+    const filter: any = { isDeleted: false, status: "published" };
+
+    if (cursor && typeof cursor.popularityScore === "number") {
+      filter.$or = [
+        {
+          popularityScore: { $lt: cursor.popularityScore },
+        },
+        {
+          popularityScore: cursor.popularityScore,
+          createdAt: { $lt: new Date(cursor.createdAt) },
+        },
+        {
+          popularityScore: cursor.popularityScore,
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: cursor.id },
+        },
+      ];
+    } else if (cursor) {
+      filter.$or = [
+        {
+          createdAt: {
+            $lt: new Date(cursor.createdAt),
+          },
+        },
+        {
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: cursor.id },
+        },
+      ];
+    }
+
+    return Blog.find(filter)
+      .sort({ popularityScore: -1, createdAt: -1, _id: -1 })
       .limit(limit)
       .lean();
   },
 
-  findByAuthor(userId: string, skip: number, limit: number) {
-    return Blog.find({ createdBy: userId, isDeleted: false })
-      .sort({ createdAt: -1 })
-      .skip(skip)
+  findByAuthor(userId: string, cursor: Cursor | undefined, limit: number) {
+    const filter: any = { createdBy: userId, isDeleted: false };
+
+    if (cursor) {
+      filter.$or = [
+        {
+          createdAt: {
+            $lt: new Date(cursor.createdAt),
+          },
+        },
+        {
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: cursor.id },
+        },
+      ];
+    }
+
+    return Blog.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .lean();
+  },
+
+  findBySlugByRegex(regex: RegExp, excludedId?: string) {
+    return Blog.find(
+      {
+        slug: regex,
+        isDeleted: false,
+        ...(excludedId && { _id: { $ne: excludedId } }),
+      },
+      { slug: 1 },
+    ).lean();
   },
 
   search(query: string, skip: number, limit: number) {
@@ -73,37 +175,9 @@ export const blogRepository = {
       .lean();
   },
 
-  totalCount() {
-    return Blog.countDocuments({ isDeleted: false, status: "published" });
-  },
-
-  countByCategory(category: string) {
-    return Blog.countDocuments({
-      isDeleted: false,
-      status: "published",
-      category,
-    });
-  },
-
-  countByTag(tag: string) {
-    return Blog.countDocuments({
-      isDeleted: false,
-      status: "published",
-      tags: tag,
-    });
-  },
-
-  countSearch(query: string) {
-    return Blog.countDocuments({
-      isDeleted: false,
-      status: "published",
-      $text: { $search: query },
-    });
-  },
-
   update(id: string, data: Partial<IBlog>) {
-    return Blog.findByIdAndUpdate({ _id: id, isDeleted: false }, data, {
-      new: true,
+    return Blog.findOneAndUpdate({ _id: id, isDeleted: false }, data, {
+      returnDocument: "after",
       runValidators: true,
     });
   },
@@ -118,27 +192,27 @@ export const blogRepository = {
   addComment(blogId: string, commentId: string) {
     return Blog.updateOne(
       { _id: blogId, isDeleted: false },
-      { $push: { comments: commentId } },
+      { $addToSet: { comments: commentId }, $inc: { commentCount: 1 } },
     );
   },
 
   removeComment(blogId: string, commentId: string) {
     return Blog.updateOne(
       { _id: blogId, isDeleted: false },
-      { $pull: { comments: commentId } },
+      { $pull: { comments: commentId }, $inc: { commentCount: -1 } },
     );
   },
 
   softDelete(id: string, userId: string, actorModel: "User" | "Admin") {
-    return Blog.findByIdAndUpdate(
-      id,
+    return Blog.findOneAndUpdate(
+      {_id:id},
       {
         isDeleted: true,
         deletedAt: Date.now(),
         deletedBy: userId,
         deletedByModel: actorModel,
       },
-      { new: true },
+      { returnDocument: "after" },
     );
   },
 
@@ -158,7 +232,7 @@ export const blogRepository = {
 
   decrementLikes(id: string, userId: string) {
     return Blog.updateOne(
-      { _id: id, isDeleted: false },
+      { _id: id, isDeleted: false, likes: userId, likeCount: { $gt: 0 } },
       {
         $pull: { likes: userId },
         $inc: { likeCount: -1 },

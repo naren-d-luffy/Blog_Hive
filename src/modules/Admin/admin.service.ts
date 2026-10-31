@@ -2,24 +2,20 @@ import env from "../../config/env.config";
 import { adminRepository } from "./admin.repository";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import AppError from "../../utils/AppError";
 import { IAdmin } from "./admin.interface";
 import { AdminLoginInput, CreateAdminInput } from "./admin.validator";
 import { AuthUser } from "../../types/auth.types";
+import checkId from "../../utils/CheckId";
+import { redisClient } from "../../config/redis.config";
+import { generateToken, hashToken } from "../../utils/generateToken";
+import { decodeCursor, encodeCursor } from "../../utils/Cursor/cursor";
 
 const ACCESS_SECRET = env.ACCESS_TOKEN;
-const REFRESH_SECRET = env.REFRESH_TOKEN;
 const FAILURE_COUNT = env.LOGIN_FAILURE_COUNT;
 const LOCK_UNTIL_TIME = env.LOCK_UNTIL_TIME * 60 * 1000;
 
 export const adminService = {
-  checkId(id: string) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new AppError("Invalid Id", 400);
-    }
-  },
-
   sanitizeAdmin(admin: Partial<IAdmin> | null) {
     if (!admin) return null;
     return {
@@ -44,35 +40,66 @@ export const adminService = {
     return this.sanitizeAdmin(newAdmin);
   },
 
-  async findAllAdmin(page: number, limit: number) {
-    const skip = (page - 1) * limit;
+  async findAllAdmin(cursor: string | undefined, limit: number) {
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined;
+    
+    const cacheKey = `admin:cursor:${cursor ?? "initial"}:limit:${limit}` 
+    const cached = await redisClient.get(cacheKey);
 
-    const [data, total] = await Promise.all([
-      adminRepository.findAll(skip, limit),
-      adminRepository.count(),
-    ]);
-    const sanitizedData = data.map((admin) => this.sanitizeAdmin(admin));
+    if (cached) {
+      return JSON.parse(cached);
+    }
 
-    return {
+    const data = await adminRepository.findAll(decodedCursor, limit+1);
+
+    const hasNextPage = data.length > limit;
+    const admins = hasNextPage ? data.slice(0,limit) : data;
+
+    const sanitizedData = admins.map((admin) => this.sanitizeAdmin(admin));
+
+    let nextCursor: string | null = null;
+
+    if(hasNextPage){
+      const lastUser = admins.at(-1)!;
+
+      nextCursor = encodeCursor({
+        createdAt: lastUser.createdAt.toISOString(),
+        id: lastUser._id.toString()
+      })
+    }
+
+    const result = {
       sanitizedData,
-      total,
-      page,
       limit,
-      totalPage: Math.ceil(total / limit),
+      hasNextPage,
+      nextCursor
     };
+
+    await redisClient.set(cacheKey, JSON.stringify(result), "EX", 60);
+    return result;
   },
 
   async findAdminById(id: string) {
-    this.checkId(id);
+    checkId(id);
+
+    const cacheKey = `admin:${id}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      console.log("Cache hit");
+      return JSON.parse(cached);
+    }
+
     const result = await adminRepository.findById(id);
     const sanitizedResult = this.sanitizeAdmin(result);
+
+    await redisClient.set(cacheKey, JSON.stringify(sanitizedResult), "EX", 60);
     return sanitizedResult;
   },
 
   async loginAdmin(credentials: AdminLoginInput) {
     const { email, password } = credentials;
 
-    const admin = await adminRepository.findByEmail(email);
+    const admin = await adminRepository.findByEmailWithPassword(email);
 
     if (!admin) throw new AppError("Invalid credentials", 401);
 
@@ -99,21 +126,29 @@ export const adminService = {
     admin.failedLoginAttempt = 0;
     admin.lastLogin = new Date();
 
+    //CSFR Handling
+    const csrfToken = generateToken({ length: 32 });
+    const hashedCsrf = hashToken(csrfToken);
+    admin.csrfToken = hashedCsrf;
+
+    //Access and Refresh Token Handling
     const payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
+
     admin.refreshToken = hashedRefresh;
+    admin.refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await adminRepository.save(admin);
 
     const safeData = this.sanitizeAdmin(admin);
 
-    return { accessToken, refreshToken, safeData };
+    return { accessToken, refreshToken, safeData, csrfToken };
   },
 
   async logoutAdmin(id: string) {
-    this.checkId(id);
+    checkId(id);
 
     const admin = await adminRepository.findById(id);
     if (!admin) throw new AppError("Admin not found or deleted", 404);
@@ -123,51 +158,71 @@ export const adminService = {
   },
 
   async updateStatus(id: string, status: "active" | "inactive") {
-    this.checkId(id);
+    checkId(id);
     const updated = await adminRepository.update(id, { status });
     if (!updated) throw new AppError("Error updating the Admin status", 400);
     const sanitizedData = this.sanitizeAdmin(updated);
+    await redisClient.del(`admin:${id}`);
     return sanitizedData;
   },
 
   async softDelete(id: string) {
-    this.checkId(id);
+    checkId(id);
     const deleted = await adminRepository.softDelete(id);
     if (!deleted) throw new AppError("Error Deleting Admin", 400);
     const sanitizedAdmin = this.sanitizeAdmin(deleted);
+    await redisClient.del(`admin:${id}`);
     return sanitizedAdmin;
   },
 
-  async postRefresh(token: string) {
-    let decode;
-    try {
-      decode = jwt.verify(token, env.REFRESH_TOKEN) as AuthUser;
-    } catch (error) {
-      throw new AppError("Invalid or expired refresh token", 403);
-    }
+  async postRefresh(admin: { id: string; role: "admin" }) {
+    //CSRF Handler
+    const csrfToken = generateToken({ length: 32 });
+    const hashedCsrf = hashToken(csrfToken);
 
-    const adminDoc = (await adminRepository.findById(decode.id));
-    if (!adminDoc) throw new AppError("Admin not found", 404);
-
-    if (!adminDoc.refreshToken) {
-      throw new AppError("RefreshToken Expired", 403);
-    }
-
-    const match = await bcrypt.compare(token, adminDoc.refreshToken);
-    if (!match) throw new AppError("Refresh token mismatch", 403);
-
-    let payload: AuthUser = { id: adminDoc.id, role: adminDoc.role };
+    //Access and Refresh Handler
+    let payload: AuthUser = { id: admin.id, role: admin.role };
 
     const accessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: "30m" });
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: "7d" });
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
-    
-    await adminRepository.update(adminDoc.id, {
+    const refreshToken = generateToken({ length: 32 });
+    const hashedRefresh = hashToken(refreshToken);
+    const refreshTokenExpiryAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await adminRepository.update(admin.id, {
       refreshToken: hashedRefresh,
+      refreshTokenExpiryAt,
+      csrfToken: hashedCsrf,
     });
 
-    const safeData = this.sanitizeAdmin(adminDoc);
+    return { accessToken, refreshToken, csrfToken };
+  },
 
-    return { accessToken, refreshToken, safeData };
+  async changePassword(id: string, currentPassword: string, newPassword: string) {
+    const admin = await adminRepository.getPasswordById(id);
+    if (!admin) throw new AppError("Admin not found", 400);
+
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+
+    if (!isMatch) {
+      throw new AppError("Invalid current password", 400);
+    }
+
+    const isSameAsOld = await bcrypt.compare(newPassword, admin.password);
+
+    if (isSameAsOld) {
+      throw new AppError("New password cannot be same as old password", 400);
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    const updatedAdmin = await adminRepository.update(id, {
+      password: hashed,
+      refreshToken: null,
+      csrfToken: null,
+      lockUntil: null,
+      failedLoginAttempt: 0,
+      lastLogin: new Date(),
+    });
+    const sanitized = this.sanitizeAdmin(updatedAdmin);
+    return sanitized;
   },
 };

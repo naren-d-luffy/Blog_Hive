@@ -1,42 +1,39 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import env from "../config/env.config";
 import AppError from "../utils/AppError";
-import { AuthUser } from "../types/auth.types";
-
-const ACCESS_SECRET = env.ACCESS_TOKEN;
+import { verifyAccessToken, authorizeRoles } from "../auth/auth.core";
 
 export const Authenticate = (req: Request,res: Response,next: NextFunction,): void => {
   const auth = req.headers.authorization;
 
   if (!auth || !auth.startsWith("Bearer ")) {
-    return next(new AppError("unauthorized: No token provided", 401));
+    return next(
+      new AppError("Unauthorized: No token provided", 401),
+    );
   }
 
-  const token = auth.split(" ")[1];
+  const token = auth.slice("Bearer ".length).trim();
+
+  if (!token || token.includes(" ")) {
+    return next(
+      new AppError("Unauthorized: Invalid token", 401),
+    );
+  }
 
   try {
-    const decode = jwt.verify(token, ACCESS_SECRET) as AuthUser;
-    req.user = decode;
-
+    req.user = verifyAccessToken(token);
     next();
   } catch (error) {
-    return next(
-      new AppError("Unauthorized: Invalid or expired token", 401, { error }),
-    );
+    next(error);
   }
 };
 
-export const Authorize = (...role: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return next(new AppError("Unauthorized", 401));
+export const Authorize = (...roles: string[]) => {
+  return (req: Request,res: Response,next: NextFunction,): void => {
+    try {
+      authorizeRoles(req.user, ...roles);
+      next();
+    } catch (error) {
+      next(error);
     }
-
-    if (!role.includes(req.user.role)) {
-      return next(new AppError("Forbidden", 403));
-    }
-
-    next();
   };
 };

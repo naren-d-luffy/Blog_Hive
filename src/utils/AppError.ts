@@ -3,9 +3,9 @@ export default class AppError extends Error{
     isOperational: boolean;
     details?:any;
 
-    constructor(message:string,statusCode:number,details?:any){
+    constructor(message:string,statusCode = 500,details?:any){
         super(message);
-        this.statusCode = statusCode || 500;
+        this.statusCode = statusCode;
         this.isOperational = true;
         this.details = details;
 

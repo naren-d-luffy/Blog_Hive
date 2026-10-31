@@ -1,5 +1,6 @@
 import User from "./user.model";
-import { IUser } from "./user.interface";
+import type { IUser } from "./user.interface";
+import type { Cursor } from "../../types/cursor.types";
 
 export const userRepository = {
   create(data: Partial<IUser>) {
@@ -10,33 +11,62 @@ export const userRepository = {
     return User.findById(id);
   },
 
+  getSessionById(id: string) {
+    return User.findOne({ _id: id, isDeleted: false }).select(
+      "+csrfToken +refreshToken +refreshTokenExpiryAt",
+    );
+  },
+
+  getSessionByRefreshToken(refreshToken: string) {
+    return User.findOne({ refreshToken, isDeleted: false }).select(
+      "+csrfToken +refreshToken +refreshTokenExpiryAt",
+    );
+  },
+
+  getPasswordById(id: string) {
+    return User.findOne({ _id: id, isDeleted: false }).select("+password");
+  },
+
   findByEmail(email: string) {
     return User.findOne({ email, isDeleted: false }).select("+password");
   },
 
-  findAll(skip: number, limit: number) {
-    return User.find({ isDeleted: false })
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 });
+  findByGoogleId(googleId: string) {
+    return User.findOne({ googleId, isDeleted: false });
   },
 
-  count() {
-    return User.countDocuments({ isDeleted: false });
+  findAll(cursor: Cursor | undefined, limit: number) {
+    const filter: any = { isDeleted: false };
+
+    if (cursor) {
+      filter.$or = [
+        {
+          createdAt: {
+            $lt: new Date(cursor.createdAt),
+          },
+        },
+        {
+          createdAt: new Date(cursor.createdAt),
+          _id: { $lt: cursor.id },
+        },
+      ];
+    }
+
+    return User.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit);
   },
 
   update(id: string, data: Partial<IUser>) {
-    return User.findByIdAndUpdate({ _id:id, isDeleted: false }, data, {
-      new: true,
+    return User.findOneAndUpdate({ _id: id, isDeleted: false }, data, {
+      returnDocument: "after",
       runValidators: true,
     });
   },
 
   softDelete(id: string) {
-    return User.findByIdAndUpdate(
-      id,
+    return User.findOneAndUpdate(
+      { _id: id },
       { isDeleted: true, deletedDate: new Date() },
-      { new: true },
+      { returnDocument: "after" },
     );
   },
 

@@ -1,0 +1,1213 @@
+{
+  "info": {
+    "_postman_id": "2d3f7740-0ad7-4e2a-b21f-586f1a371ec4",
+    "name": "Blog Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "49854102"
+  },
+  "item": [
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get All Admin",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDQzMTg4NiwiZXhwIjoxNzc0NDMzNjg2fQ.5zgTy9r9vXKuIKJErBtkPqV5qYUM8vup70zVaK5AnJA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admin",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "admin"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Admin Data",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDQzMTg4NiwiZXhwIjoxNzc0NDMzNjg2fQ.5zgTy9r9vXKuIKJErBtkPqV5qYUM8vup70zVaK5AnJA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admin/me",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create new Admin",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"naren\",\r\n  \"email\": \"naren1@gmail.com\",\r\n  \"password\": \"Password123!\",\r\n  \"token\": \"invite__vj73GKf6fte7IbsEWoxh1FmMA9vEFwGGTIW8_SSmgA\"\r\n  \r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admin",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "admin"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"naren@gmail.com\",\r\n  \"password\": \"Password123!\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admin/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-csrf-token",
+                "value": "",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admin/refresh",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "refresh"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout Admin",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDQzMTg4NiwiZXhwIjoxNzc0NDMzNjg2fQ.5zgTy9r9vXKuIKJErBtkPqV5qYUM8vup70zVaK5AnJA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-csrf-token",
+                "value": "",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admin/logout",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NTQ2Njc3OCwiZXhwIjoxNzc1NDY4NTc4fQ.AtyDqkEgylPu9nUbuo8r7FK4F6gglt4F4Gvnd3PzNDA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"inactive\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admin/status/69c3ae687aa5bb58f414f922",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "status",
+                "69c3ae687aa5bb58f414f922"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Admin",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDQzNDM3NCwiZXhwIjoxNzc0NDM2MTc0fQ.baunfr9XSqbeFFSl_1DsbB1VScEf_XrmhUSW2Fr5GfU",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admin/delete/69c3ae687aa5bb58f414f922",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "delete",
+                "69c3ae687aa5bb58f414f922"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get All User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc0ODUzOTcyLCJleHAiOjE3NzQ4NTU3NzJ9.Rg0PPt_XlUgjJ8vSIQZ_wmL0cbJR53E4ucVEW0q52jM",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User By Id",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc0ODUzOTcyLCJleHAiOjE3NzQ4NTU3NzJ9.Rg0PPt_XlUgjJ8vSIQZ_wmL0cbJR53E4ucVEW0q52jM",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user/id",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "id"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create new User",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"naren\",\r\n  \"email\": \"naren@gmail.com\",\r\n  \"password\": \"Password123!\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"naren@gmail.com\",\r\n  \"password\": \"Password123!\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-csrf-token",
+                "value": "e9vA9Ut0grotawebITVyR67mD0L-gxpDNy8EtPAcP2w",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user/refresh",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "refresh"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc0ODU0MDUzLCJleHAiOjE3NzQ4NTU4NTN9.ztI96apkdjXxvqL9oV4frZYq5SNgLlMsT1CCddAhDoA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-csrf-token",
+                "value": "",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user/logout",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDg1NDE0NiwiZXhwIjoxNzc0ODU1OTQ2fQ.8LcXdhJ2fmwNHIGr-rBiLcYsr2jzFtfeDyBHL7sNRYs",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"inactive\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user/status/69ca1f43b85df11558dc6bd9",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "status",
+                "69ca1f43b85df11558dc6bd9"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Soft Delete User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDg1NDE0NiwiZXhwIjoxNzc0ODU1OTQ2fQ.8LcXdhJ2fmwNHIGr-rBiLcYsr2jzFtfeDyBHL7sNRYs",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user/delete/69ca1f43b85df11558dc6bd9",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "delete",
+                "69ca1f43b85df11558dc6bd9"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify User",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n\"token\":\"verify__qvyWXhTGOQ6Ojof2Jw_Yxw9zU2andQQXPIPNVR60Q0\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/user/verify",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "verify"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Blog",
+      "item": [
+        {
+          "name": "Get all Blogs",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trending blog",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"naren@gmail.com\",\r\n  \"password\": \"Password123!\"\r\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/trending",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "trending"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Blog",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/search?q=\"helo\"",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "\"helo\"",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get all Blog By Cateory",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"email\": \"naren@gmail.com\",\r\n  \"password\": \"Password123!\"\r\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/category/out",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "category",
+                "out"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get all Blog by Tag",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/tag/out",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "tag",
+                "out"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Blog by Author",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/author/69ca1f43b85df11558dc6bd9",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "author",
+                "69ca1f43b85df11558dc6bd9"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Blog by slug",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/slug/testing",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "slug",
+                "testing"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Blog by id",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/69d3416fa18b2d5b8dea959e",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "69d3416fa18b2d5b8dea959e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Blog",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc1NDU0NjAxLCJleHAiOjE3NzU0NTY0MDF9.I8ckRleiN_K-xo4RRMrgdSTOhBJ6Hh0qOpZjfD-0RLY",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"heading\":\"Testing\",\r\n    \"content\":\"This body is only for testing\",\r\n    \"tags\":[\"test\"],\r\n    \"category\":[\"test\"]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Blog",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc1NDUyMjk4LCJleHAiOjE3NzU0NTQwOTh9.OApK5yyMz3_EogN9qbtpNhUDCWwXzbUDryJOjcti0BA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"status\":\"published\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/69d3416fa18b2d5b8dea959e",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "69d3416fa18b2d5b8dea959e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Soft Delete Blog",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc1NDUyMjk4LCJleHAiOjE3NzU0NTQwOTh9.OApK5yyMz3_EogN9qbtpNhUDCWwXzbUDryJOjcti0BA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/69d3416fa18b2d5b8dea959e",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "69d3416fa18b2d5b8dea959e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Like a Blog",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc1NDUyMjk4LCJleHAiOjE3NzU0NTQwOTh9.OApK5yyMz3_EogN9qbtpNhUDCWwXzbUDryJOjcti0BA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/69d3416fa18b2d5b8dea959e/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "69d3416fa18b2d5b8dea959e",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unlike a Blog",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc1NDUyMjk4LCJleHAiOjE3NzU0NTQwOTh9.OApK5yyMz3_EogN9qbtpNhUDCWwXzbUDryJOjcti0BA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/69d3416fa18b2d5b8dea959e/like",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "69d3416fa18b2d5b8dea959e",
+                "like"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "View a Blog",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc1NDUyMjk4LCJleHAiOjE3NzU0NTQwOTh9.OApK5yyMz3_EogN9qbtpNhUDCWwXzbUDryJOjcti0BA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/69d3416fa18b2d5b8dea959e/view",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "69d3416fa18b2d5b8dea959e",
+                "view"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Report a Blog",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Y2ExZjQzYjg1ZGYxMTU1OGRjNmJkOSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc1NDUyMjk4LCJleHAiOjE3NzU0NTQwOTh9.OApK5yyMz3_EogN9qbtpNhUDCWwXzbUDryJOjcti0BA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/blog/69d3416fa18b2d5b8dea959e/report",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "blog",
+                "69d3416fa18b2d5b8dea959e",
+                "report"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Log",
+      "item": [
+        {
+          "name": "Get Logs",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NjQyNTk4NiwiZXhwIjoxNzc2NDI3Nzg2fQ.77Iua0aJXSKAHJcwSoH9yq73Zq0N4lyt6EorHn11sxA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/logs?page= 1&limit=20&level=ERROR&service=auth-service&startDate=2026-04-01T00:00:00.000Z&endDate=2026-04-17T23:59:59.000Z&keyword=login failed",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "logs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": " 1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "level",
+                  "value": "ERROR"
+                },
+                {
+                  "key": "service",
+                  "value": "auth-service"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-04-01T00:00:00.000Z"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-04-17T23:59:59.000Z"
+                },
+                {
+                  "key": "keyword",
+                  "value": "login failed"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Server Health",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:5000/health",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Send Admin Invite",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5YzNhZTY4N2FhNWJiNThmNDE0ZjkyMiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NTcyMDMzOCwiZXhwIjoxNzc1NzIyMTM4fQ.VcTomXzl3TEbQ0i8zvcbwB0J6m_Q1vy6VTmHkJr870s",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"email\":\"dewsramnaren@gmail.com\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/v1/admin-invite",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "5000",
+          "path": [
+            "api",
+            "v1",
+            "admin-invite"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

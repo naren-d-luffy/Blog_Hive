@@ -29,6 +29,15 @@ import crypto from "node:crypto";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
+function getValidatedRedirectUri(redirectUri: string): string | null {
+  try {
+    const requested = new URL(redirectUri);
+    const allowed = new URL(getMcpCallbackUri());
+    return requested.toString() === allowed.toString() ? requested.toString() : null;
+  } catch {
+    return null;
+  }
+}
 function sendOAuthError(
   res: Response,
   err: unknown,
@@ -109,15 +118,20 @@ export async function authorizeHandler(req: Request, res: Response): Promise<voi
     res.status(400).json({ error: "invalid_request", error_description: "redirect_uri is required." });
     return;
   }
+  const safeRedirectUri = getValidatedRedirectUri(redirect_uri);
+  if (!safeRedirectUri) {
+    res.status(400).json({ error: "invalid_request", error_description: "redirect_uri is invalid." });
+    return;
+  }
   if (response_type !== "code") {
     res.redirect(
-      `${redirect_uri}?error=unsupported_response_type&error_description=${encodeURIComponent("Only response_type=code is supported.")}&state=${state ?? ""}`,
+      `${safeRedirectUri}?error=unsupported_response_type&error_description=${encodeURIComponent("Only response_type=code is supported.")}&state=${state ?? ""}`,
     );
     return;
   }
   if (!code_challenge) {
     res.redirect(
-      `${redirect_uri}?error=invalid_request&error_description=${encodeURIComponent("PKCE code_challenge is required.")}&state=${state ?? ""}`,
+      `${safeRedirectUri}?error=invalid_request&error_description=${encodeURIComponent("PKCE code_challenge is required.")}&state=${state ?? ""}`,
     );
     return;
   }
@@ -136,13 +150,13 @@ export async function authorizeHandler(req: Request, res: Response): Promise<voi
   } catch (err) {
     if (err instanceof OAuthError) {
       res.redirect(
-        `${redirect_uri}?error=${err.code}&error_description=${encodeURIComponent(err.description)}&state=${state ?? ""}`,
+        `${safeRedirectUri}?error=${err.code}&error_description=${encodeURIComponent(err.description)}&state=${state ?? ""}`,
       );
       return;
     }
     console.error("[MCP OAuth] authorize error:", err);
     res.redirect(
-      `${redirect_uri}?error=server_error&state=${state ?? ""}`,
+      `${safeRedirectUri}?error=server_error&state=${state ?? ""}`,
     );
   }
 }

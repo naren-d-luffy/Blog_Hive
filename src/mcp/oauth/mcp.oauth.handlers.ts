@@ -29,6 +29,15 @@ import crypto from "node:crypto";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function getValidatedRedirectUri(redirectUri: string): string | null {
   try {
     const requested = new URL(redirectUri);
@@ -178,8 +187,10 @@ export async function callbackHandler(req: Request, res: Response): Promise<void
   if (error) {
     // Google denied or errored — we can't look up the state anymore so redirect to a fallback
     // In practice Claude Desktop uses a loopback redirect, so we respond with a plain error page
+    const safeError = escapeHtml(error);
+    const safeErrorDescription = escapeHtml(error_description ?? "");
     res.status(400).send(
-      `<html><body><h2>Authorization Failed</h2><p>${error}: ${error_description ?? ""}</p></body></html>`,
+      `<html><body><h2>Authorization Failed</h2><p>${safeError}: ${safeErrorDescription}</p></body></html>`,
     );
     return;
   }
@@ -202,8 +213,10 @@ export async function callbackHandler(req: Request, res: Response): Promise<void
   } catch (err) {
     console.error("[MCP OAuth] callback error:", err);
     if (err instanceof OAuthError) {
+      const safeCode = escapeHtml(err.code);
+      const safeDescription = escapeHtml(err.description);
       res.status(400).send(
-        `<html><body><h2>Authorization Error</h2><p>${err.code}: ${err.description}</p></body></html>`,
+        `<html><body><h2>Authorization Error</h2><p>${safeCode}: ${safeDescription}</p></body></html>`,
       );
       return;
     }

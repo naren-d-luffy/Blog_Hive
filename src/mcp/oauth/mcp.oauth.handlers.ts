@@ -24,7 +24,7 @@ import {
   StoredOAuthClient,
   SUPPORTED_SCOPES,
 } from "./mcp.oauth.types";
-import { saveOAuthClient } from "./mcp.oauth.store";
+import { saveOAuthClient, getOAuthClient } from "./mcp.oauth.store";
 import crypto from "node:crypto";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -38,11 +38,26 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function getValidatedRedirectUri(redirectUri: string): string | null {
+/**
+ * Validates that the requested redirect_uri is one of the URIs the client
+ * registered via DCR (RFC 7591). Returns the normalised URI on success, null
+ * on failure.
+ *
+ * NOTE: getMcpCallbackUri() is the URI the *server* uses when it talks to
+ * Google — it has nothing to do with MCP-client redirect URIs.
+ */
+async function getValidatedRedirectUri(
+  clientId: string,
+  redirectUri: string,
+): Promise<string | null> {
   try {
     const requested = new URL(redirectUri);
-    const allowed = new URL(getMcpCallbackUri());
-    return requested.toString() === allowed.toString() ? requested.toString() : null;
+    const client = await getOAuthClient(clientId);
+    if (!client) return null;
+    const match = client.redirectUris.find(
+      (uri) => new URL(uri).toString() === requested.toString(),
+    );
+    return match ?? null;
   } catch {
     return null;
   }
@@ -127,7 +142,7 @@ export async function authorizeHandler(req: Request, res: Response): Promise<voi
     res.status(400).json({ error: "invalid_request", error_description: "redirect_uri is required." });
     return;
   }
-  const safeRedirectUri = getValidatedRedirectUri(redirect_uri);
+  const safeRedirectUri = await getValidatedRedirectUri(client_id, redirect_uri);
   if (!safeRedirectUri) {
     res.status(400).json({ error: "invalid_request", error_description: "redirect_uri is invalid." });
     return;
